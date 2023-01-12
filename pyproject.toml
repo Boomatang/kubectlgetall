@@ -1,0 +1,44 @@
+[tool.poetry]
+name = "kubectlgetall"
+version = "0.1.0"
+description = "Get a list of CRs for cluster CRDs in a namespace"
+authors = ["Jim Fitzpatrick <jimfity@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+click = "^8.1.3"
+
+[tool.poetry.dev-dependencies]
+
+[tool.poetry.scripts]
+kubectlgetall = 'kubectlgetall.cli:cli'
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+py36 = true
+include = '\.pyi?$'
+exclude = '''
+/(
+  \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  # The following are specific to Black, you probably don't want those.
+  | blib2to3
+  | tests/data
+)/
+'''
+
+[tool.isort]
+profile = "black"
+
+[tool.bandit]
+assert_used.skips = ['*_test.py', '*/test_*.py']
