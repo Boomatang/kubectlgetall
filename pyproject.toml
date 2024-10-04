@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kubectlgetall"
-version = "0.1.2"
+version = "0.2.0"
 description = "Get a list of CRs for cluster CRDs in a namespace"
 authors = ["Jim Fitzpatrick <jimfity@gmail.com>"]
 readme="README.md"
