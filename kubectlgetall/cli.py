@@ -1,10 +1,54 @@
 import asyncio
+import datetime
 import json
+import sqlite3
 import subprocess  # nosec
 
 import click
 
 from kubectlgetall import __version__
+
+
+def db_connection(database):
+    conn = sqlite3.connect(database)
+    cur = conn.cursor()
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS results(apiVersion, kind, name, namespace, creationTimestamp, resourceVersion, resultTimestamp, resultLabel)"
+    )
+    return cur, conn
+
+
+async def results_to_db(namespace, crd_types, exclude, database, label):
+    click.echo(f"saving results for namespace {namespace} to {database}")
+    cur, conn = db_connection(database)
+    exclude_ = ["events.events.k8s.io", "events", ""]
+    if exclude is not None:
+        exclude_ = exclude_ + list(exclude)
+
+    block = {}
+    for crd in crd_types:
+        if crd not in exclude_:
+            await get_cr_lists_json(crd, namespace, block)
+
+    timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    data = []
+    for crd in block:
+        for item in block[crd]:
+            data.append(
+                (
+                    item["apiVersion"],
+                    item["kind"],
+                    item["metadata"]["name"],
+                    item["metadata"]["namespace"],
+                    item["metadata"]["creationTimestamp"],
+                    item["metadata"].get("resourceVersion", None),
+                    timestamp,
+                    label,
+                )
+            )
+    cur.executemany("INSERT INTO results VALUES(?, ?, ?, ?, ?, ?, ?, ?)", data)
+    conn.commit()
+    click.echo(f"saving results for namespace {namespace} to {database}: completed")
 
 
 def get_crd_list() -> list:
@@ -107,11 +151,21 @@ async def get_cr_lists(crd, namespace):
     "-o",
     "--output",
     default="tty",
-    type=click.Choice(["tty", "json"]),
+    type=click.Choice(["tty", "json", "sqlite"]),
     show_default=True,
     help="Changes the output format of the results",
 )
-def cli(namespace, sort, exclude, output):
+@click.option(
+    "-d",
+    "--database",
+    help="Path to the sqlite file to save the results. If the file does not exist it will be created.",
+)
+@click.option(
+    "-l",
+    "--label",
+    help="Set the label that will be saved with entries when using the --database option.",
+)
+def cli(namespace, sort, exclude, output, database, label):
     """
     Returns a list of CR for the different CRDs in a given namespace
     """
@@ -127,6 +181,15 @@ def cli(namespace, sort, exclude, output):
 
     if output == "json":
         asyncio.run(get_result_json(namespace, crd_types, exclude))
+    elif output == "sqlite":
+        if database is None:
+            click.secho(
+                "Require setting --database when using --output=sqlite",
+                fg="red",
+                bold=True,
+            )
+            exit(1)
+        asyncio.run(results_to_db(namespace, crd_types, exclude, database, label))
     else:
         asyncio.run(get_result(namespace, crd_types, sort, exclude))
 

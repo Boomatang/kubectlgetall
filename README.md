@@ -18,13 +18,19 @@ Usage: kubectlgetall [OPTIONS] NAMESPACE
   Returns a list of CR for the different CRDs in a given namespace
 
 Options:
-  --version           Show the version and exit.
-  -s, --sort          Prints the resources in an order. Initial results take
-                      longer to show. Unsorted return results faster but can
-                      hit rate limits.
-  -e, --exclude TEXT  Exclude crd types. Multiple can be excluded eg: "-e <crd
-                      type> -e <other type>"
-  --help              Show this message and exit.
-
+  --version                       Show the version and exit.
+  -s, --sort                      Prints the resources in an order. Initial
+                                  results take longer to show. Unsorted return
+                                  results faster but can hit rate limits.
+  -e, --exclude TEXT              Exclude crd types. Multiple can be excluded
+                                  eg: "-e <crd type> -e <other type>"
+  -o, --output [tty|json|sqlite]  Changes the output format of the results
+                                  [default: tty]
+  -d, --database TEXT             Path to the sqlite file to save the results.
+                                  If the file does not exist it will be
+                                  created.
+  -l, --label TEXT                Set the label that will be saved with
+                                  entries when using the --database option.
+  --help                          Show this message and exit.
 
 ```
