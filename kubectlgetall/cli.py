@@ -1,10 +1,9 @@
+import argparse
 import asyncio
 import datetime
 import json
 import sqlite3
 import subprocess  # nosec
-
-import click
 
 from kubectlgetall import __version__
 
@@ -19,7 +18,7 @@ def db_connection(database):
 
 
 async def results_to_db(namespace, crd_types, exclude, database, label):
-    click.echo(f"saving results for namespace {namespace} to {database}")
+    print(f"saving results for namespace {namespace} to {database}")
     cur, conn = db_connection(database)
     exclude_ = ["events.events.k8s.io", "events", ""]
     if exclude is not None:
@@ -48,7 +47,7 @@ async def results_to_db(namespace, crd_types, exclude, database, label):
             )
     cur.executemany("INSERT INTO results VALUES(?, ?, ?, ?, ?, ?, ?, ?)", data)
     conn.commit()
-    click.echo(f"saving results for namespace {namespace} to {database}: completed")
+    print(f"saving results for namespace {namespace} to {database}: completed")
 
 
 def get_crd_list() -> list:
@@ -78,7 +77,7 @@ async def get_result_json(
         if crd not in exclude_:
             await get_cr_lists_json(crd, namespace, block)
 
-    click.echo(block)
+    print(block)
 
 
 async def get_result(
@@ -127,67 +126,78 @@ async def get_cr_lists(crd, namespace):
         capture_output=True,
     )
     if data.returncode == 0 and data.stdout != b"":
-        click.secho(crd, fg="green", bold=True)
-        click.echo(data.stdout.decode())
+        print(crd)
+        print(data.stdout.decode())
 
 
-@click.command()
-@click.version_option(version=__version__)
-@click.argument("namespace")
-@click.option(
-    "-s",
-    "--sort",
-    is_flag=True,
-    help="Prints the resources in an order. Initial results take longer to show. "
-    "Unsorted return results faster but can hit rate limits.",
-)
-@click.option(
-    "-e",
-    "--exclude",
-    multiple=True,
-    help='Exclude crd types. Multiple can be excluded eg: "-e <crd type> -e <other type>"',
-)
-@click.option(
-    "-o",
-    "--output",
-    default="tty",
-    type=click.Choice(["tty", "json", "sqlite"]),
-    show_default=True,
-    help="Changes the output format of the results",
-)
-@click.option(
-    "-d",
-    "--database",
-    help="Path to the sqlite file to save the results. If the file does not exist it will be created.",
-)
-@click.option(
-    "-l",
-    "--label",
-    help="Set the label that will be saved with entries when using the --database option.",
-)
-def cli(namespace, sort, exclude, output, database, label):
+def cli():
     """
     Returns a list of CR for the different CRDs in a given namespace
     """
+
+    parser = argparse.ArgumentParser(
+        prog="kubectlgetall",
+        description="Returns a list of CR for the different CRDs in a given namespace",
+    )
+
+    parser.add_argument("namespace")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s, version {__version__}",
+    )
+    parser.add_argument(
+        "-s",
+        "--sort",
+        action="store_true",
+        help="Prints the resources in an order. Initial results take longer to show. "
+        "Unsorted return results faster but can hit rate limits.",
+    )
+    parser.add_argument(
+        "-e",
+        "--exclude",
+        nargs="*",
+        help='Exclude crd types. Multiple can be excluded eg: "-e <CRD> <CRD>"',
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        default="tty",
+        choices=["tty", "json", "sqlite"],
+        help="Changes the output format of the results (default: %(default)s)",
+    )
+    parser.add_argument(
+        "-d",
+        "--database",
+        help="Path to the sqlite file to save the results. If the file does not exist it will be created.",
+    )
+    parser.add_argument(
+        "-l",
+        "--label",
+        help="Set the label that will be saved with entries when using the --database option.",
+    )
+
+    args = parser.parse_args()
+
+    command(
+        args.namespace, args.sort, args.exclude, args.output, args.database, args.label
+    )
+
+
+def command(namespace, sort, exclude, output, database, label):
     if output != "tty" and sort:
-        click.secho(
-            f"Can't use --sort with --output set to {output}", fg="red", bold=True
-        )
+        print(f"Can't use --sort with --output set to {output}")
         exit(1)
     crd_types = get_crd_list()
     if sort:
         crd_types = sorted(crd_types)
-        click.secho("Running in sorted mode", fg="red", bold=True)
+        print("Running in sorted mode")
 
     if output == "json":
         asyncio.run(get_result_json(namespace, crd_types, exclude))
     elif output == "sqlite":
         if database is None:
-            click.secho(
-                "Require setting --database when using --output=sqlite",
-                fg="red",
-                bold=True,
-            )
+            print("Require setting --database when using --output=sqlite")
             exit(1)
         asyncio.run(results_to_db(namespace, crd_types, exclude, database, label))
     else:
