@@ -2,12 +2,12 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
 - repo: https://github.com/psf/black
-  rev: 24.8.0 
+  rev: 25.1.0 
   hooks:
   - id: black
     language_version: python3.10
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.6.0
+  rev: v5.0.0
   hooks:
   - id: check-toml
   - id: detect-private-key
@@ -31,10 +31,10 @@ repos:
     - id: poetry-export
       args: ["--with", "dev", "-f", "requirements.txt", "-o", "requirements.txt"]
 - repo: https://github.com/PyCQA/isort
-  rev: '5.13.2'
+  rev: '6.0.0'
   hooks:
   - id: isort
 - repo: https://github.com/PyCQA/bandit
-  rev: '1.7.10'
+  rev: '1.8.2'
   hooks:
     - id: bandit
