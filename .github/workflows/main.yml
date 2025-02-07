@@ -42,6 +42,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-
     - name: Check new fragment exists
-      run: git diff --quiet HEAD "$(git describe --tags --abbrev=0 HEAD)" -- changes && exit 1 || exit 0
+      run: |
+          if git diff --quiet origin/${{ github.base_ref }}...HEAD -- changes/; then
+            echo "❌ No changes found in 'changes/' directory!"
+            exit 1
+          else
+            echo "✅ Changes detected in 'changes/' directory."
+          fi
