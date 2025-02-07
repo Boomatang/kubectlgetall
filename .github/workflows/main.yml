@@ -58,12 +58,3 @@ jobs:
 
     - name: Check new fragment exists
       run: towncrier check --compare-with "origin/${{ github.base_ref }}"
-      
-    - name: Check new fragment exists
-      run: |
-          if git diff --quiet origin/${{ github.base_ref }}...HEAD -- changes/; then
-            echo "❌ No changes found in 'changes/' directory!"
-            exit 1
-          else
-            echo "✅ Changes detected in 'changes/' directory."
-          fi
