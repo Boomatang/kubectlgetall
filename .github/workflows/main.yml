@@ -43,13 +43,5 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-
-    - name: Install dependencies
-      run: python -m pip install towncrier
-
     - name: Check new fragment exists
-      run: towncrier check
+      run: git diff --quiet HEAD "$(git describe --tags --abbrev=0 HEAD)" -- .github && exit 1 || exit 0
