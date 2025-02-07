@@ -44,4 +44,4 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Check new fragment exists
-      run: git diff --quiet HEAD "$(git describe --tags --abbrev=0 HEAD)" -- .github && exit 1 || exit 0
+      run: git diff --quiet HEAD "$(git describe --tags --abbrev=0 HEAD)" -- changes && exit 1 || exit 0
