@@ -4,11 +4,12 @@ import datetime
 import json
 import sqlite3
 import subprocess  # nosec
+from typing import Any
 
 from kubectlgetall import __version__
 
 
-def db_connection(database):
+def db_connection(database: str) -> tuple[sqlite3.Cursor, sqlite3.Connection]:
     conn = sqlite3.connect(database)
     cur = conn.cursor()
     cur.execute(
@@ -17,14 +18,16 @@ def db_connection(database):
     return cur, conn
 
 
-async def results_to_db(namespace, crd_types, exclude, database, label):
+async def results_to_db(
+    namespace: str, crd_types: list[str], exclude: tuple[str], database: str, label: str
+) -> None:
     print(f"saving results for namespace {namespace} to {database}")
     cur, conn = db_connection(database)
     exclude_ = ["events.events.k8s.io", "events", ""]
     if exclude is not None:
         exclude_ = exclude_ + list(exclude)
 
-    block = {}
+    block: dict[str, Any] = {}
     for crd in crd_types:
         if crd not in exclude_:
             await get_cr_lists_json(crd, namespace, block)
@@ -50,29 +53,31 @@ async def results_to_db(namespace, crd_types, exclude, database, label):
     print(f"saving results for namespace {namespace} to {database}: completed")
 
 
-def get_crd_list() -> list:
-    value = []
+def get_crd_list() -> list[str]:
+    value: list[str] = []
     data = subprocess.run(  # nosec
         ["kubectl", "api-resources", "--verbs=list", "--namespaced", "-o", "name"],
         capture_output=True,
     )
 
     if data.stderr == b"":
-        value = data.stdout.decode()
-        value = value.split("\n")
+        value = data.stdout.decode().split("\n")
 
     return value
 
 
 async def get_result_json(
-    namespace: str, crd_types: list, sort: bool = False, exclude: tuple = None
-):
+    namespace: str,
+    crd_types: list[str],
+    sort: bool = False,
+    exclude: tuple[str] | None = None,
+) -> None:
     exclude_ = ["events.events.k8s.io", "events", ""]
 
     if exclude is not None:
         exclude_ = exclude_ + list(exclude)
 
-    block = {}
+    block: dict[str, Any] = {}
     for crd in crd_types:
         if crd not in exclude_:
             await get_cr_lists_json(crd, namespace, block)
@@ -81,8 +86,11 @@ async def get_result_json(
 
 
 async def get_result(
-    namespace: str, crd_types: list, sort: bool = False, exclude: tuple = None
-):
+    namespace: str,
+    crd_types: list[str],
+    sort: bool = False,
+    exclude: tuple[str] | None = None,
+) -> None:
     exclude_ = ["events.events.k8s.io", "events", ""]
 
     if exclude is not None:
@@ -96,7 +104,7 @@ async def get_result(
                 await get_cr_lists(crd, namespace)
 
 
-async def get_cr_lists_json(crd, namespace, store: dict):
+async def get_cr_lists_json(crd: str, namespace: str, store: dict[str, Any]) -> None:
     data = subprocess.run(  # nosec
         [
             "kubectl",
@@ -120,7 +128,7 @@ async def get_cr_lists_json(crd, namespace, store: dict):
         store[crd] = d["items"]
 
 
-async def get_cr_lists(crd, namespace):
+async def get_cr_lists(crd: str, namespace: str) -> None:
     data = subprocess.run(  # nosec
         ["kubectl", "-n", namespace, "get", "--ignore-not-found", crd],
         capture_output=True,
@@ -130,7 +138,7 @@ async def get_cr_lists(crd, namespace):
         print(data.stdout.decode())
 
 
-def cli():
+def cli() -> None:
     """
     Returns a list of CR for the different CRDs in a given namespace
     """
@@ -184,7 +192,14 @@ def cli():
     )
 
 
-def command(namespace, sort, exclude, output, database, label):
+def command(
+    namespace: str,
+    sort: bool,
+    exclude: tuple[str],
+    output: str,
+    database: str,
+    label: str,
+) -> None:
     if output != "tty" and sort:
         print(f"Can't use --sort with --output set to {output}")
         exit(1)
@@ -194,7 +209,9 @@ def command(namespace, sort, exclude, output, database, label):
         print("Running in sorted mode")
 
     if output == "json":
-        asyncio.run(get_result_json(namespace, crd_types, exclude))
+        asyncio.run(
+            get_result_json(namespace=namespace, crd_types=crd_types, exclude=exclude)
+        )
     elif output == "sqlite":
         if database is None:
             print("Require setting --database when using --output=sqlite")
