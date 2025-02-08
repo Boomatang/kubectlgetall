@@ -131,14 +131,37 @@ async def get_cr_lists_json(crd: str, namespace: str, store: dict[str, Any]) -> 
         store[crd] = d["items"]
 
 
+def table_print(title: str, data: str) -> None:
+    try:
+        from rich.console import Console
+        from rich.table import Table
+
+        table = Table(title=title, title_style="bold green", header_style="bold")
+
+        split_data = data.split("\n")
+        for v in split_data[0].split():
+            table.add_column(v, no_wrap=True)
+
+        for a in split_data[1:-1]:
+            table.add_row(*a.split())
+
+        console = Console()
+        console.print(table)
+        console.print()
+
+    except ModuleNotFoundError as err:
+        logger.debug(err)
+        print(title)
+        print(data)
+
+
 async def get_cr_lists(crd: str, namespace: str) -> None:
     data = subprocess.run(  # nosec
         ["kubectl", "-n", namespace, "get", "--ignore-not-found", crd],
         capture_output=True,
     )
     if data.returncode == 0 and data.stdout != b"":
-        print(crd)
-        print(data.stdout.decode())
+        table_print(crd, data.stdout.decode())
 
 
 def configure_logger(logger: logging.Logger, debug: bool = False) -> None:
