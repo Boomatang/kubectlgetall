@@ -15,8 +15,12 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.9"
+rich = {version = "^13.9.4", optional = true}
 
 [tool.poetry.dev-dependencies]
+
+[tool.poetry.extras]
+rich = ["rich"]
 
 [tool.poetry.scripts]
 kubectlgetall = 'kubectlgetall.cli:cli'
