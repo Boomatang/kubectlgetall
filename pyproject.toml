@@ -21,6 +21,9 @@ python = "^3.9"
 [tool.poetry.scripts]
 kubectlgetall = 'kubectlgetall.cli:cli'
 
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.15.0"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
