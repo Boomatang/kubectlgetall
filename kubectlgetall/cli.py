@@ -2,11 +2,14 @@ import argparse
 import asyncio
 import datetime
 import json
+import logging
 import sqlite3
 import subprocess  # nosec
 from typing import Any
 
 from kubectlgetall import __version__
+
+logger: logging.Logger = logging.getLogger("kubectlgetall")
 
 
 def db_connection(database: str) -> tuple[sqlite3.Cursor, sqlite3.Connection]:
@@ -21,7 +24,7 @@ def db_connection(database: str) -> tuple[sqlite3.Cursor, sqlite3.Connection]:
 async def results_to_db(
     namespace: str, crd_types: list[str], exclude: tuple[str], database: str, label: str
 ) -> None:
-    print(f"saving results for namespace {namespace} to {database}")
+    logger.info(f"saving results for namespace {namespace} to {database}")
     cur, conn = db_connection(database)
     exclude_ = ["events.events.k8s.io", "events", ""]
     if exclude is not None:
@@ -50,7 +53,7 @@ async def results_to_db(
             )
     cur.executemany("INSERT INTO results VALUES(?, ?, ?, ?, ?, ?, ?, ?)", data)
     conn.commit()
-    print(f"saving results for namespace {namespace} to {database}: completed")
+    logger.info(f"saving results for namespace {namespace} to {database}: completed")
 
 
 def get_crd_list() -> list[str]:
@@ -138,6 +141,19 @@ async def get_cr_lists(crd: str, namespace: str) -> None:
         print(data.stdout.decode())
 
 
+def configure_logger(logger: logging.Logger, debug: bool = False) -> None:
+    ch = logging.StreamHandler()
+    if debug:
+        logger.setLevel(logging.DEBUG)
+        ch.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+        ch.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+
 def cli() -> None:
     """
     Returns a list of CR for the different CRDs in a given namespace
@@ -184,8 +200,10 @@ def cli() -> None:
         "--label",
         help="Set the label that will be saved with entries when using the --database option.",
     )
-
+    parser.add_argument("--debug", help="Enable debug mode.", action="store_true")
     args = parser.parse_args()
+    configure_logger(logger, debug=args.debug)
+    logger.debug(f"{args=}")
 
     command(
         args.namespace, args.sort, args.exclude, args.output, args.database, args.label
@@ -201,12 +219,12 @@ def command(
     label: str,
 ) -> None:
     if output != "tty" and sort:
-        print(f"Can't use --sort with --output set to {output}")
+        logger.error(f"Can't use --sort with --output set to {output}")
         exit(1)
     crd_types = get_crd_list()
     if sort:
         crd_types = sorted(crd_types)
-        print("Running in sorted mode")
+        logger.info("Running in sorted mode")
 
     if output == "json":
         asyncio.run(
@@ -214,7 +232,7 @@ def command(
         )
     elif output == "sqlite":
         if database is None:
-            print("Require setting --database when using --output=sqlite")
+            logger.error("Require setting --database when using --output=sqlite")
             exit(1)
         asyncio.run(results_to_db(namespace, crd_types, exclude, database, label))
     else:
