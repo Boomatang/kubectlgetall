@@ -187,7 +187,9 @@ def cli() -> None:
         description="Returns a list of CR for the different CRDs in a given namespace",
     )
 
-    parser.add_argument("namespace")
+    parser.add_argument(
+        "-n", "--namespace", help="Namespace to get resources from.", required=True
+    )
     parser.add_argument(
         "--version",
         action="version",
