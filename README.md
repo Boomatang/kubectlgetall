@@ -24,17 +24,15 @@ kubectlgetall <namespace>
 There are some flags that can be passed.
 ```shell
 kubectlgetall --help
-usage: kubectlgetall [-h] [--version] [-s] [-e [EXCLUDE ...]]
+usage: kubectlgetall [-h] -n NAMESPACE [--version] [-s] [-e [EXCLUDE ...]]
                      [-o {tty,json,sqlite}] [-d DATABASE] [-l LABEL] [--debug]
-                     namespace
 
 Returns a list of CR for the different CRDs in a given namespace
 
-positional arguments:
-  namespace
-
 options:
   -h, --help            show this help message and exit
+  -n, --namespace NAMESPACE
+                        Namespace to get resources from.
   --version             show program's version number and exit
   -s, --sort            Prints the resources in an order. Initial results take
                         longer to show. Unsorted return results faster but can
