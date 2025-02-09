@@ -22,9 +22,16 @@ def db_connection(database: str) -> tuple[sqlite3.Cursor, sqlite3.Connection]:
 
 
 async def results_to_db(
-    namespace: str, crd_types: list[str], exclude: tuple[str], database: str, label: str
+    namespace: str | None,
+    crd_types: list[str],
+    exclude: tuple[str],
+    database: str,
+    label: str,
 ) -> None:
-    logger.info(f"saving results for namespace {namespace} to {database}")
+    if namespace:
+        logger.info(f"saving results for namespace {namespace} to {database}")
+    else:
+        logger.info(f"saving results for all namespaces to {database}")
     cur, conn = db_connection(database)
     exclude_ = ["events.events.k8s.io", "events", ""]
     if exclude is not None:
@@ -53,7 +60,12 @@ async def results_to_db(
             )
     cur.executemany("INSERT INTO results VALUES(?, ?, ?, ?, ?, ?, ?, ?)", data)
     conn.commit()
-    logger.info(f"saving results for namespace {namespace} to {database}: completed")
+    if namespace:
+        logger.info(
+            f"saving results for namespace {namespace} to {database}: completed"
+        )
+    else:
+        logger.info(f"saving results for all namespaces to {database}: completed")
 
 
 def get_crd_list() -> list[str]:
@@ -70,7 +82,7 @@ def get_crd_list() -> list[str]:
 
 
 async def get_result_json(
-    namespace: str,
+    namespace: str | None,
     crd_types: list[str],
     sort: bool = False,
     exclude: tuple[str] | None = None,
@@ -89,7 +101,7 @@ async def get_result_json(
 
 
 async def get_result(
-    namespace: str,
+    namespace: str | None,
     crd_types: list[str],
     sort: bool = False,
     exclude: tuple[str] | None = None,
@@ -107,18 +119,24 @@ async def get_result(
                 await get_cr_lists(crd, namespace)
 
 
-async def get_cr_lists_json(crd: str, namespace: str, store: dict[str, Any]) -> None:
+async def get_cr_lists_json(
+    crd: str, namespace: str | None, store: dict[str, Any]
+) -> None:
+    cmd = [
+        "kubectl",
+        "get",
+        "--ignore-not-found",
+        crd,
+        "--output",
+        "json",
+    ]
+    if namespace:
+        cmd += ["--namespace", namespace]
+    else:
+        cmd.append("--all-namespaces")
+    logger.debug(f'cmd = "{" ".join(cmd)}"')
     data = subprocess.run(  # nosec
-        [
-            "kubectl",
-            "-n",
-            namespace,
-            "get",
-            "--ignore-not-found",
-            crd,
-            "--output",
-            "json",
-        ],
+        cmd,
         capture_output=True,
     )
     if data.returncode == 0 and data.stdout != b"":
@@ -133,6 +151,7 @@ async def get_cr_lists_json(crd: str, namespace: str, store: dict[str, Any]) -> 
 
 def table_print(title: str, data: str) -> None:
     try:
+        logger.debug("Loading rich pulgin")
         from rich.console import Console
         from rich.table import Table
 
@@ -155,9 +174,15 @@ def table_print(title: str, data: str) -> None:
         print(data)
 
 
-async def get_cr_lists(crd: str, namespace: str) -> None:
+async def get_cr_lists(crd: str, namespace: str | None) -> None:
+    cmd = ["kubectl", "get", "--ignore-not-found", crd]
+    if namespace:
+        cmd += ["--namespace", namespace]
+    else:
+        cmd.append("--all-namespaces")
+    logger.debug(f'cmd = "{" ".join(cmd)}"')
     data = subprocess.run(  # nosec
-        ["kubectl", "-n", namespace, "get", "--ignore-not-found", crd],
+        cmd,
         capture_output=True,
     )
     if data.returncode == 0 and data.stdout != b"":
@@ -187,8 +212,12 @@ def cli() -> None:
         description="Returns a list of CR for the different CRDs in a given namespace",
     )
 
+    parser.add_argument("-n", "--namespace", help="Namespace to get resources from.")
     parser.add_argument(
-        "-n", "--namespace", help="Namespace to get resources from.", required=True
+        "-A",
+        "--all-namespaces",
+        action="store_true",
+        help="If present, list all objects across all namespaces. Specifinig --namespace will be ignored",
     )
     parser.add_argument(
         "--version",
@@ -230,26 +259,38 @@ def cli() -> None:
     configure_logger(logger, debug=args.debug)
     logger.debug(f"{args=}")
 
-    command(
-        args.namespace, args.sort, args.exclude, args.output, args.database, args.label
-    )
+    if args.output != "tty" and args.sort:
+        logger.error(f"Can't use --sort with --output set to {args.output}")
+        exit(1)
+
+    namespace: str | None = None
+    if not args.all_namespaces:
+        if args.namespace is None:
+            logger.error("Namespace is required, use --namespace NAMESPACE")
+            exit(1)
+        namespace = args.namespace
+
+    command(namespace, args.sort, args.exclude, args.output, args.database, args.label)
 
 
 def command(
-    namespace: str,
+    namespace: str | None,
     sort: bool,
     exclude: tuple[str],
     output: str,
     database: str,
     label: str,
 ) -> None:
-    if output != "tty" and sort:
-        logger.error(f"Can't use --sort with --output set to {output}")
-        exit(1)
+
+    if namespace is None:
+        logger.debug("Running on all namespaces")
+    else:
+        logger.debug(f"Running on namespace: {namespace}")
+
     crd_types = get_crd_list()
     if sort:
         crd_types = sorted(crd_types)
-        logger.info("Running in sorted mode")
+        logger.debug("Running in sorted mode")
 
     if output == "json":
         asyncio.run(
