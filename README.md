@@ -5,15 +5,7 @@ List all CR's for all CRD types on a cluster in a given namespace.
 **Requires kubectl to be installed.**
 
 ## Installation
-Installing with no external dependencies.
-```shell
-pipx install kubectallgetall
-```
-
-Install with nice formatting.
-```shell
-pipx install kubectallgetall[rich]
-```
+ERROR: No good answer right now
 
 ## Usage
 
