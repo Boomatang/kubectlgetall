@@ -114,4 +114,49 @@ pub fn main() !void {
     if (config.logLevel == .debug) {
         std.debug.print("Configuration:\n\tnamespace: {s}\n\tall namespaces: {}\n\tsort: {}\n\toutput: {s}\n\tbasebase: {s}\n\tlabel: {s}\n\tlog level: {s}\n", .{ config.namespace, config.all, config.sort, @tagName(config.output), config.database, config.label, @tagName(config.logLevel) });
     }
+
+    var crdTypes = try getCrdList(allocator);
+    defer {
+        for (crdTypes.items) |item| {
+            allocator.free(item);
+        }
+        crdTypes.deinit(allocator);
+    }
+
+    std.debug.print("Found {} lines:\n", .{crdTypes.items.len});
+    for (crdTypes.items) |line| {
+        std.debug.print("CRD type: {s}\n", .{line});
+    }
+}
+
+fn getCrdList(allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
+    std.debug.print("somethig is done\n", .{});
+
+    const cmd = [_][]const u8{ "kubectl", "api-resources", "--verbs=list", "--namespaced", "-o", "name" };
+    const result = std.process.Child.run(.{
+        .allocator = allocator,
+        .argv = &cmd,
+        .cwd = null,
+        .env_map = null,
+        .max_output_bytes = 1024 * 1024, // 1MB max output
+    }) catch |err| {
+        std.debug.print("Failed to run kubectl: {}\n", .{err});
+        return err;
+    };
+    defer allocator.free(result.stdout);
+    defer allocator.free(result.stderr);
+
+    var lines: std.ArrayList([]const u8) = .empty;
+    errdefer lines.deinit(allocator);
+
+    var iter = std.mem.splitScalar(u8, result.stdout, '\n');
+    while (iter.next()) |line| {
+        if (line.len > 0) {
+            const owned = try allocator.dupe(u8, line);
+            errdefer allocator.free(owned);
+            try lines.append(allocator, owned);
+        }
+    }
+
+    return lines;
 }
