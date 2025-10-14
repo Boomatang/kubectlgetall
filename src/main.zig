@@ -12,12 +12,90 @@ const Config = struct {
     logLevel: Level,
 };
 
+const Metadata = struct {
+    name: []const u8,
+    namespace: []const u8,
+    creationTimestamp: []const u8,
+    resourceVersion: ?[]const u8,
+
+    pub fn clone(self: Metadata, allocator: std.mem.Allocator) !Metadata {
+        return .{
+            .name = try allocator.dupe(u8, self.name),
+            .namespace = try allocator.dupe(u8, self.namespace),
+            .creationTimestamp = try allocator.dupe(u8, self.creationTimestamp),
+            .resourceVersion = if (self.resourceVersion) |r|
+                try allocator.dupe(u8, r)
+            else
+                null,
+        };
+    }
+
+    pub fn deinit(self: Metadata, allocator: std.mem.Allocator) void {
+        allocator.free(self.namespace);
+        allocator.free(self.name);
+        allocator.free(self.creationTimestamp);
+        if (self.resourceVersion) |r| allocator.free(r);
+    }
+};
+
+const Resource = struct {
+    kind: []const u8,
+    apiVersion: []const u8,
+    metadata: Metadata,
+
+    pub fn clone(self: Resource, allocator: std.mem.Allocator) !Resource {
+        return .{
+            .kind = try allocator.dupe(u8, self.kind),
+            .apiVersion = try allocator.dupe(u8, self.apiVersion),
+            .metadata = try self.metadata.clone(allocator),
+        };
+    }
+
+    pub fn deinit(self: Resource, allocator: std.mem.Allocator) void {
+        allocator.free(self.apiVersion);
+        allocator.free(self.kind);
+        self.metadata.deinit(allocator);
+    }
+};
+
+const ResourceList = struct {
+    items: []Resource,
+
+    pub fn clone(self: ResourceList, allocator: std.mem.Allocator) !ResourceList {
+        var new_items = try allocator.alloc(Resource, self.items.len);
+
+        // On error, deinit any items that were already initialized and free the array.
+        var initialized: usize = 0;
+        errdefer {
+            // deinitialize only the items that were constructed so far
+            for (new_items[0..initialized]) |it| it.deinit(allocator);
+            allocator.free(new_items);
+        }
+
+        // Clone each item; increment `initialized` after a successful clone.
+        for (self.items, 0..) |item, i| {
+            new_items[i] = try item.clone(allocator);
+            initialized += 1;
+        }
+
+        // Success: cancel the errdefer cleanup by returning normally.
+        return ResourceList{ .items = new_items };
+    }
+
+    pub fn deinit(self: ResourceList, allocator: std.mem.Allocator) void {
+        for (self.items) |item| {
+            item.deinit(allocator);
+        }
+        allocator.free(self.items);
+    }
+};
+
 const Output = enum { tty, json, sqlite };
 const Level = enum { info, debug };
 const Bool = enum { true, false };
 
 pub fn main() !void {
-    var gpa = std.heap.DebugAllocator(.{}){};
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
@@ -115,7 +193,13 @@ pub fn main() !void {
         std.debug.print("Configuration:\n\tnamespace: {s}\n\tall namespaces: {}\n\tsort: {}\n\toutput: {s}\n\tbasebase: {s}\n\tlabel: {s}\n\tlog level: {s}\n", .{ config.namespace, config.all, config.sort, @tagName(config.output), config.database, config.label, @tagName(config.logLevel) });
     }
 
-    var crdTypes = try getCrdList(allocator);
+    var crdTypes = getCrdList(allocator) catch |err| switch (err) {
+        error.BadExit => {
+            std.debug.print("Kubectl returned a none zero exit code\n", .{});
+            std.process.exit(1);
+        },
+        else => return err,
+    };
     defer {
         for (crdTypes.items) |item| {
             allocator.free(item);
@@ -123,10 +207,93 @@ pub fn main() !void {
         crdTypes.deinit(allocator);
     }
 
+    if (config.sort) {
+        std.mem.sort([]const u8, crdTypes.items, {}, compareStrings);
+    }
+
     std.debug.print("Found {} lines:\n", .{crdTypes.items.len});
     for (crdTypes.items) |line| {
         std.debug.print("CRD type: {s}\n", .{line});
+        const a = getCRJson(allocator, config, line) catch |err| switch (err) {
+            error.NoData => {
+                std.debug.print("No Data retruned for: {s}", .{line});
+                continue;
+            },
+            else => return err,
+        };
+        std.debug.print("Kind: {s}\n", .{a.items[0].kind});
+        for (a.items, 1..) |item, i| {
+            std.debug.print("{d}: name = {s}, namespace = {s}\n", .{ i, item.metadata.name, item.metadata.namespace });
+        }
+        std.debug.print("\n", .{});
+        defer {
+            a.deinit(allocator);
+        }
     }
+}
+
+fn getCRJson(allocator: std.mem.Allocator, config: Config, crd: []const u8) !ResourceList {
+    const initialcmd = &[_][]const u8{ "kubectl", "get", "--ignore-not-found", crd, "--output", "json" };
+
+    var cmd: std.ArrayList([]const u8) = .empty;
+    defer cmd.deinit(allocator);
+
+    try cmd.appendSlice(allocator, initialcmd);
+    if (config.all) {
+        try cmd.append(allocator, "--all-namespaces");
+    } else {
+        try cmd.append(allocator, "--namespace");
+        try cmd.append(allocator, config.namespace);
+    }
+
+    std.debug.print("cmd: ", .{});
+    for (cmd.items) |c| {
+        std.debug.print("{s} ", .{c});
+    }
+    std.debug.print("\n", .{});
+    const ownedCmd = try cmd.toOwnedSlice(allocator);
+    defer allocator.free(ownedCmd);
+
+    const result = std.process.Child.run(.{
+        .allocator = allocator,
+        .argv = ownedCmd,
+        .cwd = null,
+        .env_map = null,
+        .max_output_bytes = 1024 * 1024, // 1MB max output
+    }) catch |err| {
+        std.debug.print("Failed to run kubectl: {}\n", .{err});
+        return err;
+    };
+    defer allocator.free(result.stdout);
+    defer allocator.free(result.stderr);
+
+    if (result.term.Exited != 0) {
+        return error.BadExit;
+    }
+
+    if (result.stdout.len == 0) {
+        return error.NoData;
+    }
+
+    const parsed: std.json.Parsed(ResourceList) = std.json.parseFromSlice(ResourceList, allocator, result.stdout, .{ .ignore_unknown_fields = true }) catch |err| switch (err) {
+        std.json.ParseFromValueError.MissingField => return error.NotFound,
+        else => return err,
+    };
+
+    defer {
+        parsed.deinit();
+    }
+
+    for (parsed.value.items) |item| {
+        std.debug.print("item name: {s}\n", .{item.metadata.name});
+    }
+    std.debug.print("Number of items: {d}\n", .{parsed.value.items.len});
+
+    return parsed.value.clone(allocator);
+}
+
+fn compareStrings(_: void, lhs: []const u8, rhs: []const u8) bool {
+    return std.mem.lessThan(u8, lhs, rhs);
 }
 
 fn getCrdList(allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
@@ -146,8 +313,17 @@ fn getCrdList(allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
     defer allocator.free(result.stdout);
     defer allocator.free(result.stderr);
 
+    if (result.term.Exited != 0) {
+        std.debug.print("stdout: {s}. stderr: {s}\n", .{ result.stdout, result.stdout });
+        return error.BadExit;
+    }
     var lines: std.ArrayList([]const u8) = .empty;
-    errdefer lines.deinit(allocator);
+    errdefer {
+        for (lines.items) |item| {
+            allocator.free(item);
+        }
+        lines.deinit(allocator);
+    }
 
     var iter = std.mem.splitScalar(u8, result.stdout, '\n');
     while (iter.next()) |line| {
