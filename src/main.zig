@@ -104,8 +104,8 @@ pub fn main() !void {
     const params = comptime clap.parseParamsComptime(
         \\-h, --help             Display this help and exit.
         \\-n, --namespace <STR>   Namespace to get resources from.
-        \\-A, --all-namespaces <BOOL> If present, list all objects across all namespaces. Specifing --namespace will be ignored.
-        \\-s, --sort <BOOL> Prints the resources in order.
+        \\-A, --all-namespaces If present, list all objects across all namespaces. Specifing --namespace will be ignored.
+        \\-s, --sort Prints the resources in order.
         \\-e, --exclude <STR>... Exclude crd types. Multiple can be excluded eg: "-e <CRD> -e <CRD>"
         \\-o, --output <OUTPUT> Changes the output format of the results.
         \\-d, --database <PATH> Path to the sqlite file to save the results. If the files does not exist it will be created.
@@ -119,7 +119,6 @@ pub fn main() !void {
         .STR = clap.parsers.string,
         .PATH = clap.parsers.string,
         .LEVEL = clap.parsers.enumeration(Level),
-        .BOOL = clap.parsers.enumeration(Bool),
     };
 
     // Initialize our diagnostics, which can be used for reporting useful errors.
@@ -151,16 +150,12 @@ pub fn main() !void {
         namespace = n;
     }
 
-    if (res.args.@"all-namespaces") |n| {
-        if (n == Bool.true) {
-            allNamespaces = true;
-        }
+    if (res.args.@"all-namespaces" == 1) {
+        allNamespaces = true;
     }
 
-    if (res.args.sort) |s| {
-        if (s == Bool.true) {
-            sort = true;
-        }
+    if (res.args.sort == 1) {
+        sort = true;
     }
 
     if (res.args.output) |o| {
