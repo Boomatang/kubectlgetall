@@ -1,6 +1,6 @@
 .{
-    .name = .kubectlgetal,
-    .version = "0.15.1",
+    .name = .kubectlgetall,
+    .version = "0.5.0-dev",
     .dependencies = .{
         .clap = .{
             .url = "https://github.com/Hejsil/zig-clap/archive/refs/tags/0.11.0.tar.gz",
@@ -8,5 +8,5 @@
         },
     },
     .paths = .{""},
-    .fingerprint = 0x1b03674a4cac8e50,
+    .fingerprint = 0x146917ff4713c3,
 }
