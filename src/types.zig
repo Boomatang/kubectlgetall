@@ -1,7 +1,7 @@
 const std = @import("std");
 
 pub const Output = enum { tty, json, sqlite };
-pub const Level = enum { info, debug };
+pub const Level = enum { info, debug, @"error", warn };
 pub const Bool = enum { true, false };
 
 pub const Config = struct {

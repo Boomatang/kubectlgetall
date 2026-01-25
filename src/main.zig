@@ -7,6 +7,34 @@ var stdout_buf: [1024]u8 = undefined;
 var stdout_writer = std.fs.File.stdout().writer(&stdout_buf);
 const stdout: *std.io.Writer = &stdout_writer.interface;
 
+pub const std_options: std.Options = .{
+    // Keep compile-time logging permissive; runtime filter in `log`.
+    .log_level = .debug,
+    .logFn = log,
+};
+
+pub var log_level: std.log.Level = .info;
+
+pub fn log(
+    comptime level: std.log.Level,
+    comptime scope: @Type(.enum_literal),
+    comptime format: []const u8,
+    args: anytype,
+) void {
+    const prefix = comptime blk: {
+        if (scope == .default)
+            break :blk "[" ++ level.asText() ++ "] ";
+        break :blk "[" ++ level.asText() ++ "][" ++ @tagName(scope) ++ "] ";
+    };
+    if (@intFromEnum(level) <= @intFromEnum(log_level)) {
+        // Print the message to stderr, silently ignoring any errors
+        std.debug.lockStdErr();
+        defer std.debug.unlockStdErr();
+        const stderr = std.fs.File.stderr().deprecatedWriter();
+        nosuspend stderr.print(prefix ++ format ++ "\n", args) catch return;
+    }
+}
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -23,7 +51,7 @@ pub fn main() !void {
         \\-o, --output <OUTPUT> Changes the output format of the results.
         \\-d, --database <PATH> Path to the sqlite file to save the results. If the files does not exist it will be created.
         \\-l, --label <STR> Set the label that will be saved with entries when using the --database option.
-        \\--log-level <LEVEL> Set the log level. All logs are saved to file.
+        \\--log-level <LEVEL> Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Defualt level is warn.
         \\
     );
 
@@ -54,7 +82,7 @@ pub fn main() !void {
     var output = types.Output.tty;
     var database: []const u8 = &[_]u8{};
     var label: []const u8 = &[_]u8{};
-    var level = types.Level.info;
+    var level = types.Level.warn;
 
     if (res.args.help != 0)
         return clap.helpToFile(.stdout(), clap.Help, &params, .{});
@@ -87,6 +115,12 @@ pub fn main() !void {
         level = l;
     }
 
+    switch (level) {
+        .debug => log_level = std.log.Level.debug,
+        .@"error" => log_level = std.log.Level.err,
+        .info => log_level = std.log.Level.info,
+        .warn => log_level = std.log.Level.warn,
+    }
     const config = types.Config{
         .namespace = namespace,
         .all = allNamespaces,
@@ -97,13 +131,11 @@ pub fn main() !void {
         .logLevel = level,
     };
 
-    if (config.logLevel == .debug) {
-        std.debug.print("Configuration:\n\tnamespace: {s}\n\tall namespaces: {}\n\tsort: {}\n\toutput: {s}\n\tbasebase: {s}\n\tlabel: {s}\n\tlog level: {s}\n", .{ config.namespace, config.all, config.sort, @tagName(config.output), config.database, config.label, @tagName(config.logLevel) });
-    }
+    std.log.debug("Configuration:\n\tnamespace: {s}\n\tall namespaces: {}\n\tsort: {}\n\toutput: {s}\n\tbasebase: {s}\n\tlabel: {s}\n\tlog level: {s}\n", .{ config.namespace, config.all, config.sort, @tagName(config.output), config.database, config.label, @tagName(config.logLevel) });
 
     var crdTypes = getCrdList(allocator) catch |err| switch (err) {
         error.BadExit => {
-            std.debug.print("Kubectl returned a none zero exit code\n", .{});
+            std.log.err("Kubectl returned a none zero exit code\n", .{});
             std.process.exit(1);
         },
         else => return err,
@@ -119,7 +151,7 @@ pub fn main() !void {
         std.mem.sort([]const u8, crdTypes.items, {}, compareStrings);
     }
 
-    std.debug.print("Total number of CRD types found {}.\n", .{crdTypes.items.len});
+    std.log.info("Total number of CRD types found {}.\n", .{crdTypes.items.len});
     for (crdTypes.items) |line| {
         const a = getCRJson(allocator, config, line) catch |err| switch (err) {
             error.NoData => {
@@ -138,7 +170,7 @@ pub fn main() !void {
         \\- get sort function to work.
         \\
     ;
-    std.debug.print("{s}\n", .{todo});
+    std.log.debug("{s}\n", .{todo});
 }
 
 fn print_table(data: types.ResourceList) !void {
@@ -339,7 +371,7 @@ fn getCRJson(allocator: std.mem.Allocator, config: types.Config, crd: []const u8
         .env_map = null,
         .max_output_bytes = 1024 * 1024, // 1MB max output
     }) catch |err| {
-        std.debug.print("Failed to run kubectl: {}\n", .{err});
+        std.log.err("Failed to run kubectl: {}\n", .{err});
         return err;
     };
     defer allocator.free(result.stdout);
@@ -378,14 +410,14 @@ fn getCrdList(allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
         .env_map = null,
         .max_output_bytes = 1024 * 1024, // 1MB max output
     }) catch |err| {
-        std.debug.print("Failed to run kubectl: {}\n", .{err});
+        std.log.err("Failed to run kubectl: {}\n", .{err});
         return err;
     };
     defer allocator.free(result.stdout);
     defer allocator.free(result.stderr);
 
     if (result.term.Exited != 0) {
-        std.debug.print("stdout: {s}. stderr: {s}\n", .{ result.stdout, result.stdout });
+        std.log.debug("stdout: {s}. stderr: {s}\n", .{ result.stdout, result.stdout });
         return error.BadExit;
     }
     var lines: std.ArrayList([]const u8) = .empty;
