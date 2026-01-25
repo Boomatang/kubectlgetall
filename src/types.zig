@@ -46,6 +46,25 @@ pub const Resource = struct {
     apiVersion: []const u8,
     metadata: Metadata,
 
+    pub fn toJson(self: @This(), allocator: std.mem.Allocator) ![]const u8 {
+        var buffer = try std.ArrayList(u8).initCapacity(allocator, 256);
+        defer buffer.deinit(allocator);
+
+        try std.fmt.format(buffer.writer(allocator), "{{\"name\": \"{s}\", \"namespace\": \"{s}\", \"createTimestamp\": \"{s}\"", .{
+            self.metadata.name,
+            self.metadata.namespace,
+            self.metadata.creationTimestamp,
+        });
+
+        if (self.metadata.resourceVersion) |version| {
+            try std.fmt.format(buffer.writer(allocator), ", \"resourceVersion\": {s}}}", .{version});
+        } else {
+            try std.fmt.format(buffer.writer(allocator), "}}", .{});
+        }
+
+        return try allocator.dupe(u8, buffer.items);
+    }
+
     pub fn clone(self: Resource, allocator: std.mem.Allocator) !Resource {
         return .{
             .kind = try allocator.dupe(u8, self.kind),
@@ -63,6 +82,24 @@ pub const Resource = struct {
 
 pub const ResourceList = struct {
     items: []Resource,
+
+    pub fn toJson(self: @This(), allocator: std.mem.Allocator) ![]const u8 {
+        var buffer = try std.ArrayList(u8).initCapacity(allocator, 256);
+        defer buffer.deinit(allocator);
+
+        try std.fmt.format(buffer.writer(allocator), "[", .{});
+        for (self.items, 0..) |item, i| {
+            const text = try item.toJson(allocator);
+            defer allocator.free(text);
+            try std.fmt.format(buffer.writer(allocator), "{s}", .{text});
+            if (i < self.items.len - 1) {
+                try std.fmt.format(buffer.writer(allocator), ",", .{});
+            }
+        }
+        try std.fmt.format(buffer.writer(allocator), "]", .{});
+
+        return try allocator.dupe(u8, buffer.items);
+    }
 
     pub fn clone(self: ResourceList, allocator: std.mem.Allocator) !ResourceList {
         var new_items = try allocator.alloc(Resource, self.items.len);

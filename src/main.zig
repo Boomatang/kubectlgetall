@@ -131,11 +131,11 @@ pub fn main() !void {
         .logLevel = level,
     };
 
-    std.log.debug("Configuration:\n\tnamespace: {s}\n\tall namespaces: {}\n\tsort: {}\n\toutput: {s}\n\tbasebase: {s}\n\tlabel: {s}\n\tlog level: {s}\n", .{ config.namespace, config.all, config.sort, @tagName(config.output), config.database, config.label, @tagName(config.logLevel) });
+    std.log.debug("Configuration:\n\tnamespace: {s}\n\tall namespaces: {}\n\tsort: {}\n\toutput: {s}\n\tbasebase: {s}\n\tlabel: {s}\n\tlog level: {s}", .{ config.namespace, config.all, config.sort, @tagName(config.output), config.database, config.label, @tagName(config.logLevel) });
 
     var crdTypes = getCrdList(allocator) catch |err| switch (err) {
         error.BadExit => {
-            std.log.err("Kubectl returned a none zero exit code\n", .{});
+            std.log.err("Kubectl returned a none zero exit code", .{});
             std.process.exit(1);
         },
         else => return err,
@@ -151,26 +151,77 @@ pub fn main() !void {
         std.mem.sort([]const u8, crdTypes.items, {}, compareStrings);
     }
 
-    std.log.info("Total number of CRD types found {}.\n", .{crdTypes.items.len});
+    std.log.info("Total number of CRD types found {}.", .{crdTypes.items.len});
+    var map: ?std.StringHashMap(types.ResourceList) = null;
+    defer if (map) |*m| {
+        var it = m.keyIterator();
+        while (it.next()) |key| {
+            const value = m.get(key.*).?;
+            value.deinit(allocator);
+        }
+        m.deinit();
+    };
+    if (config.output == .json) {
+        map = std.StringHashMap(types.ResourceList).init(allocator);
+        const v: u32 = if (crdTypes.items.len <= std.math.maxInt(u32)) @intCast(crdTypes.items.len) else std.math.maxInt(u32);
+        if (map) |*m| try m.ensureTotalCapacity(v);
+    }
     for (crdTypes.items) |line| {
-        const a = getCRJson(allocator, config, line) catch |err| switch (err) {
+        const resource = getCRJson(allocator, config, line) catch |err| switch (err) {
             error.NoData => {
                 continue;
             },
             else => return err,
         };
-        defer {
-            a.deinit(allocator);
+        switch (config.output) {
+            .tty => {
+                defer {
+                    resource.deinit(allocator);
+                }
+                try print_table(resource);
+            },
+            .sqlite => {
+                defer {
+                    resource.deinit(allocator);
+                }
+                try print_table(resource);
+            },
+            .json => {
+                if (map) |*m| {
+                    try m.put(line, resource);
+                }
+            },
         }
-        try print_table(a);
+    }
+
+    if (map) |*m| {
+        std.log.debug("map length: {}", .{m.count()});
+        try stdout.print("{{", .{});
+
+        var it = m.iterator();
+        var count: usize = 1;
+        while (it.next()) |key| {
+            const item = key.value_ptr;
+            const text = try item.toJson(allocator);
+            defer allocator.free(text);
+            try stdout.print("\"{s}\": {s}", .{ key.key_ptr.*, text });
+            if (count < m.count()) {
+                try stdout.print(",", .{});
+                count += 1;
+            }
+        }
+
+        try stdout.print("}}\n", .{});
+        try stdout.flush();
     }
 
     const todo =
-        \\To do after
-        \\- get sort function to work.
+        \\To do:
+        \\- database configuration
+        \\- exclude filter
         \\
     ;
-    std.log.debug("{s}\n", .{todo});
+    std.log.debug("{s}", .{todo});
 }
 
 fn print_table(data: types.ResourceList) !void {
@@ -371,7 +422,7 @@ fn getCRJson(allocator: std.mem.Allocator, config: types.Config, crd: []const u8
         .env_map = null,
         .max_output_bytes = 1024 * 1024, // 1MB max output
     }) catch |err| {
-        std.log.err("Failed to run kubectl: {}\n", .{err});
+        std.log.err("Failed to run kubectl: {}", .{err});
         return err;
     };
     defer allocator.free(result.stdout);
@@ -410,14 +461,14 @@ fn getCrdList(allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
         .env_map = null,
         .max_output_bytes = 1024 * 1024, // 1MB max output
     }) catch |err| {
-        std.log.err("Failed to run kubectl: {}\n", .{err});
+        std.log.err("Failed to run kubectl: {}", .{err});
         return err;
     };
     defer allocator.free(result.stdout);
     defer allocator.free(result.stderr);
 
     if (result.term.Exited != 0) {
-        std.log.debug("stdout: {s}. stderr: {s}\n", .{ result.stdout, result.stdout });
+        std.log.debug("stdout: {s}. stderr: {s}", .{ result.stdout, result.stdout });
         return error.BadExit;
     }
     var lines: std.ArrayList([]const u8) = .empty;
