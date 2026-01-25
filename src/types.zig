@@ -21,7 +21,7 @@ pub const Metadata = struct {
     creationTimestamp: []const u8,
     resourceVersion: ?[]const u8,
 
-    pub fn clone(self: Metadata, allocator: std.mem.Allocator) !Metadata {
+    pub fn clone(self: @This(), allocator: std.mem.Allocator) !Metadata {
         return .{
             .name = try allocator.dupe(u8, self.name),
             .namespace = try allocator.dupe(u8, self.namespace),
@@ -33,7 +33,7 @@ pub const Metadata = struct {
         };
     }
 
-    pub fn deinit(self: Metadata, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: @This(), allocator: std.mem.Allocator) void {
         allocator.free(self.namespace);
         allocator.free(self.name);
         allocator.free(self.creationTimestamp);
@@ -65,7 +65,7 @@ pub const Resource = struct {
         return try allocator.dupe(u8, buffer.items);
     }
 
-    pub fn clone(self: Resource, allocator: std.mem.Allocator) !Resource {
+    pub fn clone(self: @This(), allocator: std.mem.Allocator) !Resource {
         return .{
             .kind = try allocator.dupe(u8, self.kind),
             .apiVersion = try allocator.dupe(u8, self.apiVersion),
@@ -73,7 +73,7 @@ pub const Resource = struct {
         };
     }
 
-    pub fn deinit(self: Resource, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: @This(), allocator: std.mem.Allocator) void {
         allocator.free(self.apiVersion);
         allocator.free(self.kind);
         self.metadata.deinit(allocator);
@@ -101,7 +101,7 @@ pub const ResourceList = struct {
         return try allocator.dupe(u8, buffer.items);
     }
 
-    pub fn clone(self: ResourceList, allocator: std.mem.Allocator) !ResourceList {
+    pub fn clone(self: @This(), allocator: std.mem.Allocator) !ResourceList {
         var new_items = try allocator.alloc(Resource, self.items.len);
 
         // On error, deinit any items that were already initialized and free the array.
@@ -122,7 +122,7 @@ pub const ResourceList = struct {
         return ResourceList{ .items = new_items };
     }
 
-    pub fn deinit(self: ResourceList, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: @This(), allocator: std.mem.Allocator) void {
         for (self.items) |item| {
             item.deinit(allocator);
         }
