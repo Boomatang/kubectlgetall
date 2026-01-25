@@ -83,6 +83,7 @@ pub fn main() !void {
     var database: []const u8 = &[_]u8{};
     var label: []const u8 = &[_]u8{};
     var level = types.Level.warn;
+    var exclude: ?[]const []const u8 = null;
 
     if (res.args.help != 0)
         return clap.helpToFile(.stdout(), clap.Help, &params, .{});
@@ -115,6 +116,10 @@ pub fn main() !void {
         level = l;
     }
 
+    if (res.args.exclude.len > 0) {
+        exclude = res.args.exclude;
+    }
+
     switch (level) {
         .debug => log_level = std.log.Level.debug,
         .@"error" => log_level = std.log.Level.err,
@@ -125,13 +130,14 @@ pub fn main() !void {
         .namespace = namespace,
         .all = allNamespaces,
         .sort = sort,
+        .exclude = exclude,
         .output = output,
         .database = database,
         .label = label,
         .logLevel = level,
     };
 
-    std.log.debug("Configuration:\n\tnamespace: {s}\n\tall namespaces: {}\n\tsort: {}\n\toutput: {s}\n\tbasebase: {s}\n\tlabel: {s}\n\tlog level: {s}", .{ config.namespace, config.all, config.sort, @tagName(config.output), config.database, config.label, @tagName(config.logLevel) });
+    std.log.debug("{f}", .{config});
 
     var crdTypes = getCrdList(allocator) catch |err| switch (err) {
         error.BadExit => {
@@ -167,6 +173,12 @@ pub fn main() !void {
         if (map) |*m| try m.ensureTotalCapacity(v);
     }
     for (crdTypes.items) |line| {
+        if (contains(config.exclude, line)) {
+            std.log.debug("filter out: {s}", .{line});
+
+            continue;
+        }
+
         const resource = getCRJson(allocator, config, line) catch |err| switch (err) {
             error.NoData => {
                 continue;
@@ -218,10 +230,19 @@ pub fn main() !void {
     const todo =
         \\To do:
         \\- database configuration
-        \\- exclude filter
         \\
     ;
     std.log.debug("{s}", .{todo});
+}
+
+fn contains(haystack: ?[]const []const u8, needle: []const u8) bool {
+    if (haystack) |stack| {
+        for (stack) |s| {
+            if (std.mem.eql(u8, s, needle)) return true;
+        }
+    }
+
+    return false;
 }
 
 fn print_table(data: types.ResourceList) !void {

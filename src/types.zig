@@ -8,11 +8,36 @@ pub const Config = struct {
     namespace: []const u8,
     all: bool,
     sort: bool,
-    exclude: ?[][]const u8 = null, //TODO: need to pull these from the args.
+    exclude: ?[]const []const u8 = null,
     output: Output,
     database: []const u8,
     label: []const u8,
     logLevel: Level,
+
+    pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        try writer.print(
+            "Configuration:\n\tnamespace: {s}\n\tall namespaces: {}\n\tsort: {}\n\texclude: ",
+            .{ self.namespace, self.all, self.sort },
+        );
+
+        if (self.exclude) |items| {
+            try writer.writeAll("[");
+            for (items, 0..) |item, i| {
+                if (i > 0) try writer.writeAll(", ");
+                try writer.print("{s}", .{item});
+            }
+            try writer.writeAll("]\n");
+        } else {
+            try writer.writeAll("null\n");
+        }
+
+        try writer.print(
+            "\toutput: {s}\n\tdatabase: {s}\n\tlabel: {s}\n\tlog level: {s}",
+            .{ @tagName(self.output), self.database, self.label, @tagName(self.logLevel) },
+        );
+
+        try writer.flush();
+    }
 };
 
 pub const Metadata = struct {
