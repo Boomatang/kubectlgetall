@@ -1,6 +1,7 @@
 const clap = @import("clap");
 const std = @import("std");
 
+const db = @import("database.zig");
 const types = @import("types.zig");
 
 var stdout_buf: [1024]u8 = undefined;
@@ -135,6 +136,7 @@ pub fn main() !void {
         .database = database,
         .label = label,
         .logLevel = level,
+        .timestamp = std.time.timestamp(),
     };
 
     std.log.debug("{f}", .{config});
@@ -157,6 +159,13 @@ pub fn main() !void {
         std.mem.sort([]const u8, crdTypes.items, {}, compareStrings);
     }
 
+    if (config.output == .sqlite) {
+        if (config.database.len == 0) {
+            std.log.err("--database must be set to use output type of sqlite", .{});
+            std.process.exit(1);
+        }
+        try db.init(config.database);
+    }
     std.log.info("Total number of CRD types found {}.", .{crdTypes.items.len});
     var map: ?std.StringHashMap(types.ResourceList) = null;
     defer if (map) |*m| {
@@ -196,7 +205,7 @@ pub fn main() !void {
                 defer {
                     resource.deinit(allocator);
                 }
-                try print_table(resource);
+                try db.add(resource, config.label, config.timestamp);
             },
             .json => {
                 if (map) |*m| {
@@ -226,13 +235,6 @@ pub fn main() !void {
         try stdout.print("}}\n", .{});
         try stdout.flush();
     }
-
-    const todo =
-        \\To do:
-        \\- database configuration
-        \\
-    ;
-    std.log.debug("{s}", .{todo});
 }
 
 fn contains(haystack: ?[]const []const u8, needle: []const u8) bool {

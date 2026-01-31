@@ -27,6 +27,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const sqlite = b.dependency("sqlite", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
     // to the module defined above, it's sometimes preferable to split business
@@ -63,6 +68,8 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.addImport("clap", clap.module("clap"));
+    exe.root_module.addImport("sqlite", sqlite.module("sqlite"));
+    exe.linkLibC();
 
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default
@@ -165,6 +172,7 @@ pub fn build(b: *std.Build) void {
             resolved_target,
             optimize,
             clap,
+            sqlite,
         );
 
         const archive_name = b.fmt("{s}_{s}_{s}_{s}.tar.gz", .{
@@ -275,6 +283,7 @@ fn addReleaseExecutable(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     clap: *std.Build.Dependency,
+    sqlite: *std.Build.Dependency,
 ) *std.Build.Step.Compile {
     _ = optimize;
     const release_optimize: std.builtin.OptimizeMode = .ReleaseSmall;
@@ -288,6 +297,8 @@ fn addReleaseExecutable(
     });
 
     exe.root_module.addImport("clap", clap.module("clap"));
+    exe.root_module.addImport("sqlite", sqlite.module("sqlite"));
+    exe.linkLibC();
 
     return exe;
 }
