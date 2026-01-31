@@ -13,6 +13,7 @@ pub const Config = struct {
     database: []const u8,
     label: []const u8,
     logLevel: Level,
+    timestamp: i64,
 
     pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
         try writer.print(
