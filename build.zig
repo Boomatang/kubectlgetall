@@ -1,4 +1,5 @@
 const std = @import("std");
+const zon = @import("build.zig.zon");
 
 // Although this function looks imperative, it does not perform the build
 // directly and instead it mutates the build graph (`b`) that will be then
@@ -122,4 +123,24 @@ pub fn build(b: *std.Build) void {
     //
     // Lastly, the Zig build system is relatively simple and self-contained,
     // and reading its source code will allow you to master it.
+
+    // Change log configuration
+    const changelog_cmd = b.addSystemCommand(&.{
+        "towncrier",
+        "build",
+        "--draft",
+        "--version",
+        zon.version,
+    });
+    const changelog_step = b.step("changelog_draft", "Build changelog draft");
+    changelog_step.dependOn(&changelog_cmd.step);
+
+    const changelog_release_cmd = b.addSystemCommand(&.{
+        "towncrier",
+        "build",
+        "--version",
+        zon.version,
+    });
+    const changelog_release_step = b.step("changelog_release", "Build changelog draft");
+    changelog_release_step.dependOn(&changelog_release_cmd.step);
 }

@@ -2,4 +2,4 @@
 name = "kubectlgetall"
 
 filename = "CHANGELOG.md"
-directory = "changes"
+directory = "changelog.d"
