@@ -27,40 +27,38 @@ Make sure `~/.local/bin` is on your `PATH`.
 ## Usage
 
 ```shell
-kubectlgetall <namespace>
+kubectlgetall -n <namespace>
 ```
 
 There are some flags that can be passed.
 ```shell
 kubectlgetall --help
-usage: kubectlgetall [-h] [-n NAMESPACE] [-A] [--version] [-s]
-                     [-e [EXCLUDE ...]] [-o {tty,json,sqlite}] [-d DATABASE]
-                     [-l LABEL] [--debug]
+    -h, --help
+            Display this help and exit.
 
-Returns a list of CR for the different CRDs in a given namespace
+    -n, --namespace <STR>
+            Namespace to get resources from.
 
-options:
-  -h, --help            show this help message and exit
-  -n, --namespace NAMESPACE
-                        Namespace to get resources from.
-  -A, --all-namespaces  If present, list all objects across all namespaces.
-                        Specifinig --namespace will be ignored
-  --version             show program's version number and exit
-  -s, --sort            Prints the resources in an order. Initial results take
-                        longer to show. Unsorted return results faster but can
-                        hit rate limits.
-  -e, --exclude [EXCLUDE ...]
-                        Exclude crd types. Multiple can be excluded eg: "-e
-                        <CRD> <CRD>"
-  -o, --output {tty,json,sqlite}
-                        Changes the output format of the results (default:
-                        tty)
-  -d, --database DATABASE
-                        Path to the sqlite file to save the results. If the
-                        file does not exist it will be created.
-  -l, --label LABEL     Set the label that will be saved with entries when
-                        using the --database option.
-  --debug               Enable debug mode.
+    -A, --all-namespaces
+            If present, list all objects across all namespaces. Specifing --namespace will be ignored.
+
+    -s, --sort
+            Prints the resources in order.
+
+    -e, --exclude <STR>...
+            Exclude crd types. Multiple can be excluded eg: "-e <CRD> -e <CRD>"
+
+    -o, --output <OUTPUT>
+            Changes the output format of the results.
+
+    -d, --database <PATH>
+            Path to the sqlite file to save the results. If the files does not exist it will be created.
+
+    -l, --label <STR>
+            Set the label that will be saved with entries when using the --database option.
+
+        --log-level <LEVEL>
+            Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Defualt level is warn.
 
 ```
 
