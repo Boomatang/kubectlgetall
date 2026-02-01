@@ -67,6 +67,12 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
+    const options = b.addOptions();
+    options.addOption([]const u8, "version", zon.version);
+    options.addOption([]const u8, "name", @tagName(zon.name));
+
+    exe.root_module.addOptions("build_options", options);
+
     exe.root_module.addImport("clap", clap.module("clap"));
     exe.root_module.addImport("sqlite", sqlite.module("sqlite"));
     exe.linkLibC();
@@ -295,6 +301,12 @@ fn addReleaseExecutable(
             .optimize = release_optimize,
         }),
     });
+
+    const options = b.addOptions();
+    options.addOption([]const u8, "version", zon.version);
+    options.addOption([]const u8, "name", @tagName(zon.name));
+
+    exe.root_module.addOptions("build_options", options);
 
     exe.root_module.addImport("clap", clap.module("clap"));
     exe.root_module.addImport("sqlite", sqlite.module("sqlite"));

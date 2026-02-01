@@ -1,5 +1,6 @@
 const clap = @import("clap");
 const std = @import("std");
+const build_options = @import("build_options");
 
 const db = @import("database.zig");
 const types = @import("types.zig");
@@ -54,6 +55,7 @@ pub fn main() !void {
         \\-d, --database <PATH> Path to the sqlite file to save the results. If the files does not exist it will be created.
         \\-l, --label <STR> Set the label that will be saved with entries when using the --database option.
         \\--log-level <LEVEL> Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Defualt level is warn.
+        \\--version Display verson, and exit.
         \\
     );
 
@@ -89,6 +91,11 @@ pub fn main() !void {
 
     if (res.args.help != 0)
         return clap.helpToFile(.stdout(), clap.Help, &params, .{});
+
+    if (res.args.version != 0) {
+        std.log.info("{s}, {s}", .{ build_options.name, build_options.version });
+        std.process.exit(0);
+    }
 
     if (res.args.namespace) |n| {
         namespace = n;
