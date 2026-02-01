@@ -1,6 +1,6 @@
 .{
     .name = .kubectlgetall,
-    .version = "0.5.0-dev",
+    .version = "0.5.0",
     .dependencies = .{
         .clap = .{
             .url = "https://github.com/Hejsil/zig-clap/archive/refs/tags/0.11.0.tar.gz",
