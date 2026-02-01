@@ -60,6 +60,9 @@ kubectlgetall --help
         --log-level <LEVEL>
             Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Defualt level is warn.
 
+        --version
+            Display verson, and exit.
+
 ```
 
 ## Dev
