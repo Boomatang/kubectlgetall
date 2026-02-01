@@ -5,7 +5,24 @@ List all CR's for all CRD types on a cluster in a given namespace.
 **Requires kubectl to be installed.**
 
 ## Installation
-ERROR: No good answer right now
+ Install it to a user-writable directory like `~/.local/bin` and ensure it is on your `PATH`.
+
+### Prebuilt release
+Download the matching archive from the GitHub Releases page, then extract and
+install it:
+
+```shell
+tar -xzf kubectlgetall_<version>_<os>_<arch>.tar.gz
+mkdir -p ~/.local/bin
+cp kubectlgetall ~/.local/bin/
+```
+
+### Build from source
+```shell
+zig build -Doptimize=ReleaseSmall -p ~/.local
+```
+
+Make sure `~/.local/bin` is on your `PATH`.
 
 ## Usage
 
@@ -50,8 +67,16 @@ options:
 ## Dev
 ### Creating the changelog
 
-On new changes a news fragment is required.
-This can be created by and news fragments to the `changes` directory.
-These files are should have the following naming schema `<issue id>.<feature|bugfix|dic|removal|misc>`.
-Using `towncrier create -c "change message" <file name>` will also create the file for you in the correct location.
+For new changes a news fragment is required. Add a fragment to
+`changelog.d/` with the naming schema
+`<issue id>.<feature|bugfix|doc|removal|misc>`.
+Using `towncrier create -c "change message" <file name>` will create the file
+for you in the correct location.
+
+### Release process
+1. Ensure all changes have news fragments in `changelog.d/`.
+2. Update the version in `build.zig.zon`.
+3. Run `zig build changelog_release` to update `CHANGELOG.md`.
+4. Run `zig build release` to generate release archives in `dist/`.
+5. Tag and publish the release with the generated archives and changelog.
 
