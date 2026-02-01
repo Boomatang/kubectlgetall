@@ -1,3 +1,18 @@
+# kubectlgetall 0.5.0 (2026-02-01)
+
+## Features
+
+- Version flag, `--version` flag can be used to get the current version of the application.
+- Zig port. This release has moved the application to zig 0.15.2.
+  This has the added advantage of shipping binaries for cross-platform.
+  Only Linux x86_64 has being tested locally.
+
+## Misc
+
+- Add release scripts to build the different platform releases.
+- Configure changelog to be a zig build command
+
+
 # Kubectlgetall 0.4.0 (2025-02-09)
 
 ### Features
