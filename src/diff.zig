@@ -72,7 +72,10 @@ pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iter
 }
 
 fn printByKind(io: std.Io, resources: types.ResourceList) !void {
-    if (resources.items.len == 0) return;
+    if (resources.items.len == 0) {
+        std.log.debug("Resource list is emtpy, early exit.", .{});
+        return;
+    }
 
     var start: usize = 0;
     while (start < resources.items.len) {
@@ -91,6 +94,16 @@ fn section(io: std.Io, header: []const u8) !void {
     var file_writer = std.Io.File.stdout().writer(io, &buf);
     const stdout = &file_writer.interface;
 
-    try stdout.print("========== {s} ==========\n", .{header});
+    const width = 40;
+    const color_start = "\x1b[1;31m";
+    const reset = "\x1b[0m";
+    const separator = "=" ** width;
+    const padding = (width - header.len) / 2;
+
+    try stdout.print("\n{s}{s}\n", .{ color_start, separator });
+    for (0..padding) |_| {
+        try stdout.print(" ", .{});
+    }
+    try stdout.print("{s}\n{s}{s}\n\n", .{ header, separator, reset });
     try stdout.flush();
 }
