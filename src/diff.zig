@@ -55,20 +55,35 @@ pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iter
 
     try db.init(config.database);
 
-    try section(io, "Added Resources");
     const added_resources = try db.added(gpa, config.label_a, config.label_b);
     defer added_resources.deinit(gpa);
-    try printByKind(io, added_resources);
-
-    try section(io, "Updated Resources");
     const updated_resources = try db.updated(gpa, config.label_a, config.label_b);
     defer updated_resources.deinit(gpa);
-    try printByKind(io, updated_resources);
-
-    try section(io, "Removed Resources");
     const deleted_resources = try db.deleted(gpa, config.label_a, config.label_b);
     defer deleted_resources.deinit(gpa);
-    try printByKind(io, deleted_resources);
+
+    const max_width = maxTableWidth(added_resources, updated_resources, deleted_resources);
+
+    try printSection(io, "Added Resources", added_resources, max_width);
+    try printSection(io, "Updated Resources", updated_resources, max_width);
+    try printSection(io, "Removed Resources", deleted_resources, max_width);
+}
+
+fn maxTableWidth(added: types.ResourceList, updated: types.ResourceList, deleted: types.ResourceList) usize {
+    var max: usize = 40;
+    if (added.items.len > 0) max = @max(max, table.calcWidth(added));
+    if (updated.items.len > 0) max = @max(max, table.calcWidth(updated));
+    if (deleted.items.len > 0) max = @max(max, table.calcWidth(deleted));
+    return max;
+}
+
+fn printSection(io: std.Io, header: []const u8, resources: types.ResourceList, width: usize) !void {
+    if (resources.items.len == 0) {
+        std.log.debug("{s}: no resources found, skipping.", .{header});
+        return;
+    }
+    try section(io, header, width);
+    try printByKind(io, resources);
 }
 
 fn printByKind(io: std.Io, resources: types.ResourceList) !void {
@@ -89,21 +104,21 @@ fn printByKind(io: std.Io, resources: types.ResourceList) !void {
     }
 }
 
-fn section(io: std.Io, header: []const u8) !void {
+fn section(io: std.Io, header: []const u8, width: usize) !void {
     var buf: [4096]u8 = undefined;
     var file_writer = std.Io.File.stdout().writer(io, &buf);
     const stdout = &file_writer.interface;
 
-    const width = 40;
-    const color_start = "\x1b[1;31m";
+    const color_start = "\x1b[1;33m";
     const reset = "\x1b[0m";
-    const separator = "=" ** width;
     const padding = (width - header.len) / 2;
 
-    try stdout.print("\n{s}{s}\n", .{ color_start, separator });
-    for (0..padding) |_| {
-        try stdout.print(" ", .{});
-    }
-    try stdout.print("{s}\n{s}{s}\n\n", .{ header, separator, reset });
+    try stdout.print("\n{s}", .{color_start});
+    for (0..width) |_| try stdout.print("=", .{});
+    try stdout.print("\n", .{});
+    for (0..padding) |_| try stdout.print(" ", .{});
+    try stdout.print("{s}\n", .{header});
+    for (0..width) |_| try stdout.print("=", .{});
+    try stdout.print("{s}\n\n", .{reset});
     try stdout.flush();
 }
