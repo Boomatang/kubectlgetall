@@ -43,18 +43,15 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-          fetch-depth: 0 
+        fetch-depth: 0
 
     - name: Ensure base branch exists
       run: git fetch origin ${{ github.base_ref }}
 
-    - name: Set up python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-
-    - name: Install dependencies
-      run: python -m pip install towncrier
-
     - name: Check new fragment exists
-      run: towncrier check --compare-with "origin/${{ github.base_ref }}"
+      run: |
+        if [ -z "$(git diff --name-only --diff-filter=A "origin/${{ github.base_ref }}" -- '.changes/unreleased/*.yaml')" ]; then
+          echo "No changelog fragment found in .changes/unreleased/"
+          echo "Run 'zig build changie:add' to create one."
+          exit 1
+        fi
