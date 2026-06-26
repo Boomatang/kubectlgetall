@@ -68,16 +68,30 @@ kubectlgetall --help
 ## Dev
 ### Creating the changelog
 
-For new changes a news fragment is required. Add a fragment to
-`changelog.d/` with the naming schema
-`<issue id>.<feature|bugfix|doc|removal|misc>`.
-Using `towncrier create -c "change message" <file name>` will create the file
-for you in the correct location.
+On new changes a news fragment is required.
+Create one interactively with:
+```
+zig build changie:add
+```
+This places a YAML fragment in `.changes/unreleased/`.
+The available change kinds are: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
-### Release process
-1. Ensure all changes have news fragments in `changelog.d/`.
-2. Update the version in `build.zig.zon`.
-3. Run `zig build changelog_release` to update `CHANGELOG.md`.
-4. Run `zig build release` to generate release archives in `dist/`.
-5. Tag and publish the release with the generated archives and changelog.
-
+### Release workflow
+1. Ensure the version in `build.zig.zon` is correct for this release.
+2. Batch the unreleased fragments into a versioned changelog file:
+```
+zig build changie:batch
+```
+3. Review the generated file in `.changes/` for the release version.
+4. Merge all versioned changelogs into `CHANGELOG.md`:
+```
+zig build changie:merge
+```
+5. Commit changes.
+6. Build release artifacts:
+```
+zig build release
+```
+7. Create a GitHub release for the current commit with the release version as the tag.
+   - Release notes should be the changelog entry for that version.
+   - Attach all artifacts from `dist/` to the GitHub release.
