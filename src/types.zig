@@ -1,7 +1,6 @@
 const std = @import("std");
 
 pub const Output = enum { tty, json, sqlite };
-pub const Level = enum { info, debug, @"error", warn };
 pub const Bool = enum { true, false };
 
 pub const Config = struct {
@@ -12,7 +11,6 @@ pub const Config = struct {
     output: Output,
     database: []const u8,
     label: []const u8,
-    logLevel: Level,
     timestamp: i64,
 
     pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
@@ -33,8 +31,8 @@ pub const Config = struct {
         }
 
         try writer.print(
-            "\toutput: {s}\n\tdatabase: {s}\n\tlabel: {s}\n\tlog level: {s}",
-            .{ @tagName(self.output), self.database, self.label, @tagName(self.logLevel) },
+            "\toutput: {s}\n\tdatabase: {s}\n\tlabel: {s}",
+            .{ @tagName(self.output), self.database, self.label },
         );
 
         try writer.flush();

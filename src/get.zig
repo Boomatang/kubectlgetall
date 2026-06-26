@@ -4,6 +4,7 @@ const clap = @import("clap");
 
 const args = @import("args.zig");
 const db = @import("database.zig");
+const logging = @import("log.zig");
 const types = @import("types.zig");
 const table = @import("table.zig");
 
@@ -32,7 +33,7 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
         .OUTPUT = clap.parsers.enumeration(types.Output),
         .STR = clap.parsers.string,
         .PATH = clap.parsers.string,
-        .LEVEL = clap.parsers.enumeration(types.Level),
+        .LEVEL = clap.parsers.enumeration(logging.Level),
     };
 
     // Initialize our diagnostics, which can be used for reporting useful errors.
@@ -55,7 +56,6 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
     var output = types.Output.tty;
     var database: []const u8 = &[_]u8{};
     var label: []const u8 = &[_]u8{};
-    var level = types.Level.warn;
     var exclude: ?[]const []const u8 = null;
 
     if (res.args.help != 0)
@@ -86,19 +86,12 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
     }
 
     if (res.args.@"log-level") |l| {
-        level = l;
+        logging.setLogLevel(l);
     }
 
     if (res.args.exclude.len > 0) {
         exclude = res.args.exclude;
     }
-
-    // switch (level) {
-    //    .debug => log_level = std.log.Level.debug,
-    //   .@"error" => log_level = std.log.Level.err,
-    //  .info => log_level = std.log.Level.info,
-    // .warn => log_level = std.log.Level.warn,
-    // }
     const config = types.Config{
         .namespace = namespace,
         .all = allNamespaces,
@@ -107,7 +100,6 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
         .output = output,
         .database = database,
         .label = label,
-        .logLevel = level,
         .timestamp = std.Io.Timestamp.now(io, .real).toSeconds(),
     };
 

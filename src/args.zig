@@ -1,5 +1,5 @@
 const clap = @import("clap");
-const types = @import("types.zig");
+const logging = @import("log.zig");
 
 const SubCommands = enum {
     get,
@@ -8,7 +8,7 @@ const SubCommands = enum {
 
 pub const main_parsers = .{
     .command = clap.parsers.enumeration(SubCommands),
-    .LEVEL = clap.parsers.enumeration(types.Level),
+    .LEVEL = clap.parsers.enumeration(logging.Level),
 };
 
 pub const main_params = clap.parseParamsComptime(
