@@ -3,6 +3,7 @@ const args = @import("args.zig");
 const clap = @import("clap");
 const logging = @import("log.zig");
 const db = @import("database.zig");
+const table = @import("table.zig");
 const types = @import("types.zig");
 
 pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator, main_args: args.MainArgs) !void {
@@ -52,14 +53,37 @@ pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iter
     };
     std.log.debug("{f}", .{config});
 
-    std.debug.print("running diff\ndatabase: {s}\nlabel A: {s}\nlabel B: {s}\n", .{ database, label_a, label_b });
     try db.init(config.database);
+
     try section(io, "Added Resources");
-    db.added(config.label_a, config.label_b);
+    const added_resources = try db.added(gpa, config.label_a, config.label_b);
+    defer added_resources.deinit(gpa);
+    try printByKind(io, added_resources);
+
     try section(io, "Updated Resources");
-    db.updated(config.label_a, config.label_b);
+    const updated_resources = try db.updated(gpa, config.label_a, config.label_b);
+    defer updated_resources.deinit(gpa);
+    try printByKind(io, updated_resources);
+
     try section(io, "Removed Resources");
-    db.deleted(config.label_a, config.label_b);
+    const deleted_resources = try db.deleted(gpa, config.label_a, config.label_b);
+    defer deleted_resources.deinit(gpa);
+    try printByKind(io, deleted_resources);
+}
+
+fn printByKind(io: std.Io, resources: types.ResourceList) !void {
+    if (resources.items.len == 0) return;
+
+    var start: usize = 0;
+    while (start < resources.items.len) {
+        const kind = resources.items[start].kind;
+        var end = start + 1;
+        while (end < resources.items.len and std.mem.eql(u8, resources.items[end].kind, kind)) {
+            end += 1;
+        }
+        try table.print(io, .{ .items = resources.items[start..end] });
+        start = end;
+    }
 }
 
 fn section(io: std.Io, header: []const u8) !void {
