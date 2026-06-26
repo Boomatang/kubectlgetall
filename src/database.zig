@@ -11,14 +11,14 @@ pub fn init(database: []const u8) !void {
     db = try sqlite.Database.open(.{
         .path = c_string,
     });
-    try db.exec("CREATE TABLE IF NOT EXISTS results(id INTEGER PRIMARY KEY AUTOINCREMENT, apiVersion, kind, name, namespace, creationTimestamp, resourceVersion, resultTimestamp, resultLabel)", .{});
+    try db.exec("CREATE TABLE IF NOT EXISTS results(id INTEGER PRIMARY KEY AUTOINCREMENT, apiVersion, kind, name, namespace, creationTimestamp, resourceVersion, generation, resultTimestamp, resultLabel)", .{});
 }
 
 pub fn add(enties: types.ResourceList, label: ?[]const u8, timestamp: i64) !void {
     var _label: ?sqlite.Text = null;
     if (label) |l| _label = sqlite.text(l);
 
-    const insert = try db.prepare(Entry, void, "INSERT INTO results VALUES (NULL, :apiVersion, :kind, :name, :namespace, :creationTimestamp, :resourceVersion, :resultTimestamp, :resultLabel)");
+    const insert = try db.prepare(Entry, void, "INSERT INTO results VALUES (NULL, :apiVersion, :kind, :name, :namespace, :creationTimestamp, :resourceVersion, :generation, :resultTimestamp, :resultLabel)");
     defer insert.finalize();
     for (enties.items) |entry| {
         std.log.debug("adding {s}/{s}/{s} to database", .{
@@ -34,6 +34,7 @@ pub fn add(enties: types.ResourceList, label: ?[]const u8, timestamp: i64) !void
             .namespace = sqlite.text(entry.metadata.namespace),
             .creationTimestamp = sqlite.text(entry.metadata.creationTimestamp),
             .resourceVersion = sqlite.text(entry.metadata.resourceVersion.?),
+            .generation = entry.metadata.generation,
             .resultTimestamp = timestamp,
             .resultLabel = _label,
         });
@@ -47,6 +48,7 @@ const Entry = struct {
     namespace: sqlite.Text,
     creationTimestamp: sqlite.Text,
     resourceVersion: sqlite.Text,
+    generation: ?u64,
     resultTimestamp: i64,
     resultLabel: ?sqlite.Text,
 };
