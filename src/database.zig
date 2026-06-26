@@ -33,7 +33,7 @@ pub fn add(enties: types.ResourceList, label: ?[]const u8, timestamp: i64) !void
             .name = sqlite.text(entry.metadata.name),
             .namespace = sqlite.text(entry.metadata.namespace),
             .creationTimestamp = sqlite.text(entry.metadata.creationTimestamp),
-            .resourceVersion = sqlite.text(entry.metadata.resourceVersion.?),
+            .resourceVersion = if (entry.metadata.resourceVersion) |rv| sqlite.text(rv) else sqlite.text(""),
             .generation = entry.metadata.generation,
             .resultTimestamp = timestamp,
             .resultLabel = _label,

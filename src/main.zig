@@ -173,8 +173,8 @@ pub fn main(init: std.process.Init) !void {
     defer if (map) |*m| {
         var it = m.keyIterator();
         while (it.next()) |key| {
-            const value = m.get(key.*).?;
-            value.deinit(allocator);
+            const value = m.get(key.*);
+            if (value) |v| v.deinit(allocator);
         }
         m.deinit();
     };
