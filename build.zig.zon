@@ -1,6 +1,7 @@
 .{
     .name = .kubectlgetall,
     .version = "0.6.0-dev",
+    .fingerprint = 0x146917ff4713c3,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .clap = .{
@@ -11,11 +12,30 @@
             .url = "https://github.com/nDimensional/zig-sqlite/archive/refs/tags/v0.4.0-3530100.tar.gz",
             .hash = "sqlite-0.4.0-3530100-djiKTqCBAABomylmlMLWtzm9bE_8NQ1O7qVu6l9x6aP1",
         },
+        .changie_linux_amd64 = .{
+            .url = "https://github.com/miniscruff/changie/releases/download/v1.24.0/changie_1.24.0_linux_amd64.tar.gz",
+            .hash = "N-V-__8AAENZjwAgVC77qCVBXAtYm4fnrTMT1RBqj1t8NhBZ",
+            .lazy = true,
+        },
+        .changie_linux_arm64 = .{
+            .url = "https://github.com/miniscruff/changie/releases/download/v1.24.0/changie_1.24.0_linux_arm64.tar.gz",
+            .hash = "N-V-__8AAENJhwD2wvDEhjJfTloiHqn-qpmoePGSFu-Vx3SJ",
+            .lazy = true,
+        },
+        .changie_darwin_amd64 = .{
+            .url = "https://github.com/miniscruff/changie/releases/download/v1.24.0/changie_1.24.0_darwin_amd64.tar.gz",
+            .hash = "N-V-__8AAGs5kgBBv5ttmT4sx1a5kaIdXaCpiezGwNPiIjQJ",
+            .lazy = true,
+        },
+        .changie_darwin_arm64 = .{
+            .url = "https://github.com/miniscruff/changie/releases/download/v1.24.0/changie_1.24.0_darwin_arm64.tar.gz",
+            .hash = "N-V-__8AAC38iQDlMJ83w1JhoVxWE-rVPQK7wL7bP_-5M0EF",
+            .lazy = true,
+        },
     },
     .paths = .{
         "build.zig",
         "build.zig.zon",
         "src",
     },
-    .fingerprint = 0x146917ff4713c3,
 }
