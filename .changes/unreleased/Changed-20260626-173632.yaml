@@ -1,0 +1,3 @@
+kind: Changed
+body: Zig version has being bumped to 0.16.0. This required the updating of both zig-clap, and zig-sqlite.
+time: 2026-06-26T17:36:32.373441432+01:00

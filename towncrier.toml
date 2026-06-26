@@ -1,5 +1,0 @@
-[tool.towncrier]
-name = "kubectlgetall"
-
-filename = "CHANGELOG.md"
-directory = "changelog.d"
