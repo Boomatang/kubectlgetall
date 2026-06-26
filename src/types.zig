@@ -76,16 +76,18 @@ pub const Resource = struct {
         var buffer = try std.ArrayList(u8).initCapacity(allocator, 256);
         defer buffer.deinit(allocator);
 
-        try std.fmt.format(buffer.writer(allocator), "{{\"name\": \"{s}\", \"namespace\": \"{s}\", \"createTimestamp\": \"{s}\"", .{
+        const s = try std.fmt.allocPrint(allocator, "{{\"name\": \"{s}\", \"namespace\": \"{s}\", \"createTimestamp\": \"{s}\"", .{
             self.metadata.name,
             self.metadata.namespace,
             self.metadata.creationTimestamp,
         });
+        try buffer.appendSlice(allocator, s);
 
         if (self.metadata.resourceVersion) |version| {
-            try std.fmt.format(buffer.writer(allocator), ", \"resourceVersion\": {s}}}", .{version});
+            const ss = try std.fmt.allocPrint(allocator, ", \"resourceVersion\": {s}}}", .{version});
+            try buffer.appendSlice(allocator, ss);
         } else {
-            try std.fmt.format(buffer.writer(allocator), "}}", .{});
+            try buffer.appendSlice(allocator, "}}");
         }
 
         return try allocator.dupe(u8, buffer.items);
@@ -113,16 +115,17 @@ pub const ResourceList = struct {
         var buffer = try std.ArrayList(u8).initCapacity(allocator, 256);
         defer buffer.deinit(allocator);
 
-        try std.fmt.format(buffer.writer(allocator), "[", .{});
+        try buffer.append(allocator, '[');
         for (self.items, 0..) |item, i| {
             const text = try item.toJson(allocator);
             defer allocator.free(text);
-            try std.fmt.format(buffer.writer(allocator), "{s}", .{text});
+
+            try buffer.appendSlice(allocator, text);
             if (i < self.items.len - 1) {
-                try std.fmt.format(buffer.writer(allocator), ",", .{});
+                try buffer.append(allocator, ',');
             }
         }
-        try std.fmt.format(buffer.writer(allocator), "]", .{});
+        try buffer.append(allocator, ']');
 
         return try allocator.dupe(u8, buffer.items);
     }

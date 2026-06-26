@@ -9,4 +9,5 @@ nohup.out
 *.db
 zig-out/
 .zig-cache/
+zig-pkg/
 docs/

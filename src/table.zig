@@ -1,12 +1,12 @@
 const std = @import("std");
 const types = @import("types.zig");
 
-var stdout_buf: [1024]u8 = undefined;
-var stdout_writer = std.fs.File.stdout().writer(&stdout_buf);
-const stdout: *std.io.Writer = &stdout_writer.interface;
-
-pub fn print(data: types.ResourceList) !void {
+pub fn print(io: std.Io, data: types.ResourceList) !void {
     // TODO: This code is horrible, needs a large refactor
+
+    var buf: [4096]u8 = undefined;
+    var file_writer = std.Io.File.stdout().writer(io, &buf);
+    const stdout = &file_writer.interface;
     const title_name = "NAME";
     const title_namespace = "NAMESPACE";
     const title_creationTimestamp = "CREATION TIMESTAMP";

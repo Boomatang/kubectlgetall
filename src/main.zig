@@ -6,10 +6,6 @@ const db = @import("database.zig");
 const types = @import("types.zig");
 const table = @import("table.zig");
 
-var stdout_buf: [1024]u8 = undefined;
-var stdout_writer = std.fs.File.stdout().writer(&stdout_buf);
-const stdout: *std.io.Writer = &stdout_writer.interface;
-
 pub const std_options: std.Options = .{
     // Keep compile-time logging permissive; runtime filter in `log`.
     .log_level = .debug,
@@ -20,7 +16,7 @@ pub var log_level: std.log.Level = .info;
 
 pub fn log(
     comptime level: std.log.Level,
-    comptime scope: @Type(.enum_literal),
+    comptime scope: @EnumLiteral(),
     comptime format: []const u8,
     args: anytype,
 ) void {
@@ -29,20 +25,18 @@ pub fn log(
             break :blk "[" ++ level.asText() ++ "] ";
         break :blk "[" ++ level.asText() ++ "][" ++ @tagName(scope) ++ "] ";
     };
+
     if (@intFromEnum(level) <= @intFromEnum(log_level)) {
-        // Print the message to stderr, silently ignoring any errors
-        std.debug.lockStdErr();
-        defer std.debug.unlockStdErr();
-        const stderr = std.fs.File.stderr().deprecatedWriter();
-        nosuspend stderr.print(prefix ++ format ++ "\n", args) catch return;
+        std.debug.print(prefix ++ format ++ "\n", args);
     }
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
+    var stdout_buf: [4096]u8 = undefined;
+    var stdout_writer = std.Io.File.stdout().writer(init.io, &stdout_buf);
+    const stdout = &stdout_writer.interface;
     // First we specify what parameters our program can take.
     // We can use `parseParamsComptime` to parse a string into an array of `Param(Help)`.
     const params = comptime clap.parseParamsComptime(
@@ -70,12 +64,12 @@ pub fn main() !void {
     // This is optional. You can also pass `.{}` to `clap.parse` if you don't
     // care about the extra information `Diagnostic` provides.
     var diag = clap.Diagnostic{};
-    var res = clap.parse(clap.Help, &params, parsers, .{
+    var res = clap.parse(clap.Help, &params, parsers, init.minimal.args, .{
         .diagnostic = &diag,
         .allocator = allocator,
     }) catch |err| {
         // Report useful error and exit.
-        try diag.reportToFile(.stderr(), err);
+        try diag.reportToFile(init.io, .stderr(), err);
         return err;
     };
     defer res.deinit();
@@ -90,7 +84,7 @@ pub fn main() !void {
     var exclude: ?[]const []const u8 = null;
 
     if (res.args.help != 0)
-        return clap.helpToFile(.stdout(), clap.Help, &params, .{});
+        return clap.helpToFile(init.io, .stdout(), clap.Help, &params, .{});
 
     if (res.args.version != 0) {
         std.log.info("{s}, {s}", .{ build_options.name, build_options.version });
@@ -144,12 +138,12 @@ pub fn main() !void {
         .database = database,
         .label = label,
         .logLevel = level,
-        .timestamp = std.time.timestamp(),
+        .timestamp = std.Io.Timestamp.now(init.io, .real).toSeconds(),
     };
 
     std.log.debug("{f}", .{config});
 
-    var crdTypes = getCrdList(allocator) catch |err| switch (err) {
+    var crdTypes = getCrdList(init.io, allocator) catch |err| switch (err) {
         error.BadExit => {
             std.log.err("Kubectl returned a none zero exit code", .{});
             std.process.exit(1);
@@ -196,7 +190,7 @@ pub fn main() !void {
             continue;
         }
 
-        const resource = getCRJson(allocator, config, line) catch |err| switch (err) {
+        const resource = getCRJson(init.io, allocator, config, line) catch |err| switch (err) {
             error.NoData => {
                 continue;
             },
@@ -207,7 +201,7 @@ pub fn main() !void {
                 defer {
                     resource.deinit(allocator);
                 }
-                try table.print(resource);
+                try table.print(init.io, resource);
             },
             .sqlite => {
                 defer {
@@ -255,7 +249,7 @@ fn contains(haystack: ?[]const []const u8, needle: []const u8) bool {
     return false;
 }
 
-fn getCRJson(allocator: std.mem.Allocator, config: types.Config, crd: []const u8) !types.ResourceList {
+fn getCRJson(io: std.Io, allocator: std.mem.Allocator, config: types.Config, crd: []const u8) !types.ResourceList {
     const initialcmd = &[_][]const u8{ "kubectl", "get", "--ignore-not-found", crd, "--output", "json" };
 
     var cmd: std.ArrayList([]const u8) = .empty;
@@ -272,12 +266,8 @@ fn getCRJson(allocator: std.mem.Allocator, config: types.Config, crd: []const u8
     const ownedCmd = try cmd.toOwnedSlice(allocator);
     defer allocator.free(ownedCmd);
 
-    const result = std.process.Child.run(.{
-        .allocator = allocator,
+    const result = std.process.run(allocator, io, .{
         .argv = ownedCmd,
-        .cwd = null,
-        .env_map = null,
-        .max_output_bytes = 1024 * 1024, // 1MB max output
     }) catch |err| {
         std.log.err("Failed to run kubectl: {}", .{err});
         return err;
@@ -285,7 +275,7 @@ fn getCRJson(allocator: std.mem.Allocator, config: types.Config, crd: []const u8
     defer allocator.free(result.stdout);
     defer allocator.free(result.stderr);
 
-    if (result.term.Exited != 0) {
+    if (result.term.exited != 0) {
         return error.BadExit;
     }
 
@@ -309,14 +299,10 @@ fn compareStrings(_: void, lhs: []const u8, rhs: []const u8) bool {
     return std.mem.lessThan(u8, lhs, rhs);
 }
 
-fn getCrdList(allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
+fn getCrdList(io: std.Io, allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
     const cmd = [_][]const u8{ "kubectl", "api-resources", "--verbs=list", "--namespaced", "-o", "name" };
-    const result = std.process.Child.run(.{
-        .allocator = allocator,
+    const result = std.process.run(allocator, io, .{
         .argv = &cmd,
-        .cwd = null,
-        .env_map = null,
-        .max_output_bytes = 1024 * 1024, // 1MB max output
     }) catch |err| {
         std.log.err("Failed to run kubectl: {}", .{err});
         return err;
@@ -324,7 +310,7 @@ fn getCrdList(allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
     defer allocator.free(result.stdout);
     defer allocator.free(result.stderr);
 
-    if (result.term.Exited != 0) {
+    if (result.term.exited != 0) {
         std.log.debug("stdout: {s}. stderr: {s}", .{ result.stdout, result.stdout });
         return error.BadExit;
     }
