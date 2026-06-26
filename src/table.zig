@@ -1,36 +1,46 @@
 const std = @import("std");
 const types = @import("types.zig");
 
-pub fn print(io: std.Io, data: types.ResourceList) !void {
-    // TODO: This code is horrible, needs a large refactor
+const title_name = "NAME";
+const title_namespace = "NAMESPACE";
+const title_creationTimestamp = "CREATION TIMESTAMP";
+const header_count = 3;
 
-    var buf: [4096]u8 = undefined;
-    var file_writer = std.Io.File.stdout().writer(io, &buf);
-    const stdout = &file_writer.interface;
-    const title_name = "NAME";
-    const title_namespace = "NAMESPACE";
-    const title_creationTimestamp = "CREATION TIMESTAMP";
-
+fn calcColumnWidths(data: types.ResourceList) [3]usize {
     var max_name_length: usize = title_name.len;
     var max_namespace_length: usize = title_namespace.len;
     var max_creationTimestamp_length: usize = title_creationTimestamp.len;
-    const kind = data.items[0].kind;
+
     for (data.items) |i| {
         if (i.metadata.name.len > max_name_length) max_name_length = i.metadata.name.len;
         if (i.metadata.namespace.len > max_namespace_length) max_namespace_length = i.metadata.namespace.len;
         if (i.metadata.creationTimestamp.len > max_creationTimestamp_length) max_creationTimestamp_length = i.metadata.creationTimestamp.len;
     }
 
-    const headers: [3][]const u8 = .{ title_namespace, title_name, title_creationTimestamp };
-    const spacing: [3]usize = .{ max_namespace_length, max_name_length, max_creationTimestamp_length };
+    return .{ max_namespace_length, max_name_length, max_creationTimestamp_length };
+}
+
+fn calcLineLength(spacing: [3]usize) usize {
     var spacing_required: usize = 0;
     for (spacing) |s| spacing_required += s;
+    return spacing_required + 2 + (2 * header_count) + (header_count - 1) - 1;
+}
 
-    // add 2 for table ends
-    // add 2 for each field printed (name, namespace) = 4
-    // add field count - 1 for vertical divides
-    // needs a - 1 for some reason
-    const line_length = spacing_required + 2 + (2 * headers.len) + (headers.len - 1) - 1;
+pub fn calcWidth(data: types.ResourceList) usize {
+    return calcLineLength(calcColumnWidths(data));
+}
+
+pub fn print(io: std.Io, data: types.ResourceList) !void {
+    // TODO: This code is horrible, needs a large refactor
+
+    var buf: [4096]u8 = undefined;
+    var file_writer = std.Io.File.stdout().writer(io, &buf);
+    const stdout = &file_writer.interface;
+
+    const kind = data.items[0].kind;
+    const headers: [3][]const u8 = .{ title_namespace, title_name, title_creationTimestamp };
+    const spacing = calcColumnWidths(data);
+    const line_length = calcLineLength(spacing);
     var divider_idx: usize = 0;
     var divider = 2 + spacing[divider_idx] + 1;
     divider_idx += 1;
@@ -177,4 +187,43 @@ pub fn print(io: std.Io, data: types.ResourceList) !void {
         }
     }
     try stdout.flush();
+}
+
+fn testResource(name: []const u8, namespace: []const u8, timestamp: []const u8) types.Resource {
+    return .{
+        .kind = "Pod",
+        .apiVersion = "v1",
+        .metadata = .{
+            .name = name,
+            .namespace = namespace,
+            .creationTimestamp = timestamp,
+        },
+    };
+}
+
+test "calcWidth with header-length values" {
+    const items = [_]types.Resource{testResource("ab", "cd", "ef")};
+    const width = calcWidth(.{ .items = &items });
+    // columns default to header lengths: NAMESPACE(9) + NAME(4) + CREATION TIMESTAMP(18) = 31
+    // line_length = 31 + 2 + 6 + 2 - 1 = 40
+    try std.testing.expectEqual(@as(usize, 40), width);
+}
+
+test "calcWidth with longer name expands width" {
+    const items = [_]types.Resource{testResource("a-very-long-resource-name", "default", "2026-01-01T00:00:00Z")};
+    const width = calcWidth(.{ .items = &items });
+    // columns: NAMESPACE(9) + name(25) + timestamp(20) = 54
+    // line_length = 54 + 2 + 6 + 2 - 1 = 63
+    try std.testing.expectEqual(@as(usize, 63), width);
+}
+
+test "calcWidth picks max across multiple items" {
+    const items = [_]types.Resource{
+        testResource("short", "ns", "2026-01-01T00:00:00Z"),
+        testResource("a-much-longer-name", "a-long-namespace", "2026-01-01T00:00:00Z"),
+    };
+    const width = calcWidth(.{ .items = &items });
+    // columns: namespace(16) + name(18) + timestamp(20) = 54
+    // line_length = 54 + 2 + 6 + 2 - 1 = 63
+    try std.testing.expectEqual(@as(usize, 63), width);
 }
