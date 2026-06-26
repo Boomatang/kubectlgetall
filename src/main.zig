@@ -8,31 +8,12 @@ const table = @import("table.zig");
 const arg = @import("args.zig");
 const diff = @import("diff.zig");
 const get = @import("get.zig");
+const logging = @import("log.zig");
 
 pub const std_options: std.Options = .{
-    // Keep compile-time logging permissive; runtime filter in `log`.
     .log_level = .debug,
-    .logFn = log,
+    .logFn = logging.log,
 };
-
-pub var log_level: std.log.Level = .info;
-
-pub fn log(
-    comptime level: std.log.Level,
-    comptime scope: @EnumLiteral(),
-    comptime format: []const u8,
-    args: anytype,
-) void {
-    const prefix = comptime blk: {
-        if (scope == .default)
-            break :blk "[" ++ level.asText() ++ "] ";
-        break :blk "[" ++ level.asText() ++ "][" ++ @tagName(scope) ++ "] ";
-    };
-
-    if (@intFromEnum(level) <= @intFromEnum(log_level)) {
-        std.debug.print(prefix ++ format ++ "\n", args);
-    }
-}
 
 pub fn main(init: std.process.Init) !void {
     var iter = try init.minimal.args.iterateAllocator(init.gpa);
@@ -59,15 +40,8 @@ pub fn main(init: std.process.Init) !void {
         std.process.exit(0);
     }
 
-    var level = types.Level.warn;
     if (res.args.@"log-level") |l| {
-        level = l;
-    }
-    switch (level) {
-        .debug => log_level = std.log.Level.debug,
-        .@"error" => log_level = std.log.Level.err,
-        .info => log_level = std.log.Level.info,
-        .warn => log_level = std.log.Level.warn,
+        logging.setLogLevel(l);
     }
 
     const command = res.positionals[0] orelse {

@@ -1,6 +1,7 @@
 const std = @import("std");
 const args = @import("args.zig");
 const clap = @import("clap");
+const logging = @import("log.zig");
 const types = @import("types.zig");
 
 pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator, main_args: args.MainArgs) !void {
@@ -18,7 +19,7 @@ pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iter
     const parsers = comptime .{
         .PATH = clap.parsers.string,
         .LABEL = clap.parsers.string,
-        .LEVEL = clap.parsers.enumeration(types.Level),
+        .LEVEL = clap.parsers.enumeration(logging.Level),
     };
 
     var diag = clap.Diagnostic{};
@@ -32,13 +33,11 @@ pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iter
     };
     defer res.deinit();
 
-    var level = types.Level.warn;
-
     if (res.args.help != 0)
         return clap.helpToFile(io, .stdout(), clap.Help, &params, .{});
 
     if (res.args.@"log-level") |l| {
-        level = l;
+        logging.setLogLevel(l);
     }
 
     const database = res.args.database orelse return error.MissingDatabase;
