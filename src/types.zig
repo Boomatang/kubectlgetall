@@ -39,6 +39,20 @@ pub const Config = struct {
     }
 };
 
+pub const DiffConfig = struct {
+    database: []const u8,
+    label_a: []const u8,
+    label_b: []const u8,
+
+    pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        try writer.print(
+            "Configuration:\n\tdatabase: {s}\n\tlabel A: {s}\n\tlabel B: {s}\n",
+            .{ self.database, self.label_a, self.label_b },
+        );
+        try writer.flush();
+    }
+};
+
 pub const Metadata = struct {
     name: []const u8,
     namespace: []const u8,
