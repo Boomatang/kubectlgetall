@@ -1,0 +1,3 @@
+kind: Added
+body: Kubernetes resource generation type has now being added to json and sql outputs.
+time: 2026-06-26T18:34:45.526451381+01:00

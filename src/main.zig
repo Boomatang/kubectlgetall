@@ -45,7 +45,7 @@ pub fn main(init: std.process.Init) !void {
         \\-A, --all-namespaces If present, list all objects across all namespaces. Specifing --namespace will be ignored.
         \\-s, --sort Prints the resources in order.
         \\-e, --exclude <STR>... Exclude crd types. Multiple can be excluded eg: "-e <CRD> -e <CRD>"
-        \\-o, --output <OUTPUT> Changes the output format of the results.
+        \\-o, --output <OUTPUT> Changes the output format of the results. [default: tty, tty|json|sqlite]
         \\-d, --database <PATH> Path to the sqlite file to save the results. If the files does not exist it will be created.
         \\-l, --label <STR> Set the label that will be saved with entries when using the --database option.
         \\--log-level <LEVEL> Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Defualt level is warn.

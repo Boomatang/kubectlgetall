@@ -45,17 +45,16 @@ pub const Metadata = struct {
     name: []const u8,
     namespace: []const u8,
     creationTimestamp: []const u8,
-    resourceVersion: ?[]const u8,
+    resourceVersion: ?[]const u8 = null,
+    generation: ?u64 = null,
 
     pub fn clone(self: @This(), allocator: std.mem.Allocator) !Metadata {
         return .{
             .name = try allocator.dupe(u8, self.name),
             .namespace = try allocator.dupe(u8, self.namespace),
             .creationTimestamp = try allocator.dupe(u8, self.creationTimestamp),
-            .resourceVersion = if (self.resourceVersion) |r|
-                try allocator.dupe(u8, r)
-            else
-                null,
+            .resourceVersion = if (self.resourceVersion) |r| try allocator.dupe(u8, r) else null,
+            .generation = self.generation,
         };
     }
 
@@ -76,19 +75,27 @@ pub const Resource = struct {
         var buffer = try std.ArrayList(u8).initCapacity(allocator, 256);
         defer buffer.deinit(allocator);
 
-        const s = try std.fmt.allocPrint(allocator, "{{\"name\": \"{s}\", \"namespace\": \"{s}\", \"createTimestamp\": \"{s}\"", .{
+        const initial_string = try std.fmt.allocPrint(allocator, "{{\"name\": \"{s}\", \"namespace\": \"{s}\", \"createTimestamp\": \"{s}\"", .{
             self.metadata.name,
             self.metadata.namespace,
             self.metadata.creationTimestamp,
         });
-        try buffer.appendSlice(allocator, s);
+        try buffer.appendSlice(allocator, initial_string);
+        defer allocator.free(initial_string);
 
         if (self.metadata.resourceVersion) |version| {
-            const ss = try std.fmt.allocPrint(allocator, ", \"resourceVersion\": {s}}}", .{version});
-            try buffer.appendSlice(allocator, ss);
-        } else {
-            try buffer.appendSlice(allocator, "}}");
+            const resource_version = try std.fmt.allocPrint(allocator, ", \"resourceVersion\": {s}", .{version});
+            defer allocator.free(resource_version);
+            try buffer.appendSlice(allocator, resource_version);
         }
+
+        if (self.metadata.generation) |generation| {
+            const generation_str = try std.fmt.allocPrint(allocator, ", \"generation\": {}", .{generation});
+            defer allocator.free(generation_str);
+            try buffer.appendSlice(allocator, generation_str);
+        }
+
+        try buffer.appendSlice(allocator, "}}");
 
         return try allocator.dupe(u8, buffer.items);
     }
