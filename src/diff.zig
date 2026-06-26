@@ -2,6 +2,7 @@ const std = @import("std");
 const args = @import("args.zig");
 const clap = @import("clap");
 const logging = @import("log.zig");
+const db = @import("database.zig");
 const types = @import("types.zig");
 
 pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator, main_args: args.MainArgs) !void {
@@ -44,5 +45,28 @@ pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iter
     const label_a = res.positionals[0] orelse return error.MissingArg1;
     const label_b = res.positionals[1] orelse return error.MissingArg2;
 
+    const config = types.DiffConfig{
+        .database = database,
+        .label_a = label_a,
+        .label_b = label_b,
+    };
+    std.log.debug("{f}", .{config});
+
     std.debug.print("running diff\ndatabase: {s}\nlabel A: {s}\nlabel B: {s}\n", .{ database, label_a, label_b });
+    try db.init(config.database);
+    try section(io, "Added Resources");
+    db.added(config.label_a, config.label_b);
+    try section(io, "Updated Resources");
+    db.updated(config.label_a, config.label_b);
+    try section(io, "Removed Resources");
+    db.deleted(config.label_a, config.label_b);
+}
+
+fn section(io: std.Io, header: []const u8) !void {
+    var buf: [4096]u8 = undefined;
+    var file_writer = std.Io.File.stdout().writer(io, &buf);
+    const stdout = &file_writer.interface;
+
+    try stdout.print("========== {s} ==========\n", .{header});
+    try stdout.flush();
 }

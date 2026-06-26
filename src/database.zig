@@ -14,6 +14,18 @@ pub fn init(database: []const u8) !void {
     try db.exec("CREATE TABLE IF NOT EXISTS results(id INTEGER PRIMARY KEY AUTOINCREMENT, apiVersion, kind, name, namespace, creationTimestamp, resourceVersion, generation, resultTimestamp, resultLabel)", .{});
 }
 
+pub fn added(label_a: []const u8, label_b: []const u8) void {
+    std.log.debug("getting newer resource under label: {s}, compared to label: {s}", .{ label_a, label_b });
+}
+
+pub fn updated(label_a: []const u8, label_b: []const u8) void {
+    std.log.debug("getting updated resource under label: {s}, compared to label: {s}", .{ label_a, label_b });
+}
+
+pub fn deleted(label_a: []const u8, label_b: []const u8) void {
+    std.log.debug("getting deleted resource under label: {s}, compared to label: {s}", .{ label_a, label_b });
+}
+
 pub fn add(enties: types.ResourceList, label: ?[]const u8, timestamp: i64) !void {
     var _label: ?sqlite.Text = null;
     if (label) |l| _label = sqlite.text(l);
