@@ -1,16 +1,21 @@
 .{
     .name = .kubectlgetall,
-    .version = "0.5.0",
+    .version = "0.6.0-dev",
+    .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .clap = .{
-            .url = "https://github.com/Hejsil/zig-clap/archive/refs/tags/0.11.0.tar.gz",
-            .hash = "clap-0.11.0-oBajB-HnAQDPCKYzwF7rO3qDFwRcD39Q0DALlTSz5H7e",
+            .url = "https://github.com/Hejsil/zig-clap/archive/refs/tags/0.12.0.tar.gz",
+            .hash = "clap-0.12.0-oBajB7foAQDqlSwaSG5g0yq7xGbQARUsBk5T64gAOqP5",
         },
         .sqlite = .{
-            .url = "https://github.com/nDimensional/zig-sqlite/archive/refs/tags/v0.3.2-3510100.tar.gz",
-            .hash = "sqlite-0.3.2-3510100-djiKTqmAAADFNYxhtQSupdE7DURa1hGE8tL7aQzUFMdK",
+            .url = "https://github.com/nDimensional/zig-sqlite/archive/refs/tags/v0.4.0-3530100.tar.gz",
+            .hash = "sqlite-0.4.0-3530100-djiKTqCBAABomylmlMLWtzm9bE_8NQ1O7qVu6l9x6aP1",
         },
     },
-    .paths = .{""},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
     .fingerprint = 0x146917ff4713c3,
 }
