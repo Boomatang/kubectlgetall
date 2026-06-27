@@ -9,7 +9,6 @@ const table = @import("table.zig");
 const utils = @import("utils.zig");
 
 pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator) !void {
-
     var stdout_buf: [4096]u8 = undefined;
     var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buf);
     const stdout = &stdout_writer.interface;
@@ -256,16 +255,18 @@ fn compareStrings(_: void, lhs: []const u8, rhs: []const u8) bool {
     return std.mem.lessThan(u8, lhs, rhs);
 }
 
-fn getCrdList(io: std.Io, allocator: std.mem.Allocator) !std.ArrayList([]const u8) {
+fn getCrdList(io: std.Io, gpa: std.mem.Allocator) !std.ArrayList([]const u8) {
     const cmd = [_][]const u8{ "kubectl", "api-resources", "--verbs=list", "--namespaced", "-o", "name" };
-    const result = std.process.run(allocator, io, .{
+    const result = std.process.run(gpa, io, .{
         .argv = &cmd,
     }) catch |err| {
         std.log.err("Failed to run kubectl: {}", .{err});
         return err;
     };
-    defer allocator.free(result.stdout);
-    defer allocator.free(result.stderr);
+    defer {
+        gpa.free(result.stdout);
+        gpa.free(result.stderr);
+    }
 
     if (result.term.exited != 0) {
         std.log.debug("stdout: {s}. stderr: {s}", .{ result.stdout, result.stderr });
@@ -274,17 +275,17 @@ fn getCrdList(io: std.Io, allocator: std.mem.Allocator) !std.ArrayList([]const u
     var lines: std.ArrayList([]const u8) = .empty;
     errdefer {
         for (lines.items) |item| {
-            allocator.free(item);
+            gpa.free(item);
         }
-        lines.deinit(allocator);
+        lines.deinit(gpa);
     }
 
     var iter = std.mem.splitScalar(u8, result.stdout, '\n');
     while (iter.next()) |line| {
         if (line.len > 0) {
-            const owned = try allocator.dupe(u8, line);
-            errdefer allocator.free(owned);
-            try lines.append(allocator, owned);
+            const owned = try gpa.dupe(u8, line);
+            errdefer gpa.free(owned);
+            try lines.append(gpa, owned);
         }
     }
 

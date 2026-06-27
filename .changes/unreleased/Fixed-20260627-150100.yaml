@@ -1,0 +1,3 @@
+kind: Fixed
+body: 'The json output was not valid, items would have an extra }. '
+time: 2026-06-27T15:01:00.473603684+01:00
