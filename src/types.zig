@@ -74,21 +74,21 @@ pub const Metadata = struct {
     resourceVersion: ?[]const u8 = null,
     generation: ?u64 = null,
 
-    pub fn clone(self: @This(), allocator: std.mem.Allocator) !Metadata {
+    pub fn clone(self: @This(), gpa: std.mem.Allocator) !Metadata {
         return .{
-            .name = try allocator.dupe(u8, self.name),
-            .namespace = try allocator.dupe(u8, self.namespace),
-            .creationTimestamp = try allocator.dupe(u8, self.creationTimestamp),
-            .resourceVersion = if (self.resourceVersion) |r| try allocator.dupe(u8, r) else null,
+            .name = try gpa.dupe(u8, self.name),
+            .namespace = try gpa.dupe(u8, self.namespace),
+            .creationTimestamp = try gpa.dupe(u8, self.creationTimestamp),
+            .resourceVersion = if (self.resourceVersion) |r| try gpa.dupe(u8, r) else null,
             .generation = self.generation,
         };
     }
 
-    pub fn deinit(self: @This(), allocator: std.mem.Allocator) void {
-        allocator.free(self.namespace);
-        allocator.free(self.name);
-        allocator.free(self.creationTimestamp);
-        if (self.resourceVersion) |r| allocator.free(r);
+    pub fn deinit(self: @This(), gpa: std.mem.Allocator) void {
+        gpa.free(self.namespace);
+        gpa.free(self.name);
+        gpa.free(self.creationTimestamp);
+        if (self.resourceVersion) |r| gpa.free(r);
     }
 };
 
@@ -97,35 +97,35 @@ pub const Resource = struct {
     apiVersion: []const u8,
     metadata: Metadata,
 
-    pub fn toJson(self: @This(), allocator: std.mem.Allocator) ![]const u8 {
-        var buffer = try std.ArrayList(u8).initCapacity(allocator, 256);
-        defer buffer.deinit(allocator);
+    pub fn toJson(self: @This(), gpa: std.mem.Allocator) ![]const u8 {
+        var buffer = try std.ArrayList(u8).initCapacity(gpa, 256);
+        defer buffer.deinit(gpa);
 
-        const initial_string = try std.fmt.allocPrint(allocator, "{{\"kind\": \"{s}\", \"apiVersion\": \"{s}\", \"name\": \"{s}\", \"namespace\": \"{s}\", \"creationTimestamp\": \"{s}\"", .{
+        const initial_string = try std.fmt.allocPrint(gpa, "{{\"kind\": \"{s}\", \"apiVersion\": \"{s}\", \"name\": \"{s}\", \"namespace\": \"{s}\", \"creationTimestamp\": \"{s}\"", .{
             self.kind,
             self.apiVersion,
             self.metadata.name,
             self.metadata.namespace,
             self.metadata.creationTimestamp,
         });
-        try buffer.appendSlice(allocator, initial_string);
-        defer allocator.free(initial_string);
+        try buffer.appendSlice(gpa, initial_string);
+        defer gpa.free(initial_string);
 
         if (self.metadata.resourceVersion) |version| {
-            const resource_version = try std.fmt.allocPrint(allocator, ", \"resourceVersion\": \"{s}\"", .{version});
-            defer allocator.free(resource_version);
-            try buffer.appendSlice(allocator, resource_version);
+            const resource_version = try std.fmt.allocPrint(gpa, ", \"resourceVersion\": \"{s}\"", .{version});
+            defer gpa.free(resource_version);
+            try buffer.appendSlice(gpa, resource_version);
         }
 
         if (self.metadata.generation) |generation| {
-            const generation_str = try std.fmt.allocPrint(allocator, ", \"generation\": {}", .{generation});
-            defer allocator.free(generation_str);
-            try buffer.appendSlice(allocator, generation_str);
+            const generation_str = try std.fmt.allocPrint(gpa, ", \"generation\": {}", .{generation});
+            defer gpa.free(generation_str);
+            try buffer.appendSlice(gpa, generation_str);
         }
 
-        try buffer.appendSlice(allocator, "}}");
+        try buffer.append(gpa, '}');
 
-        return try allocator.dupe(u8, buffer.items);
+        return try gpa.dupe(u8, buffer.items);
     }
 
     pub fn clone(self: @This(), allocator: std.mem.Allocator) !Resource {
@@ -146,39 +146,39 @@ pub const Resource = struct {
 pub const ResourceList = struct {
     items: []Resource,
 
-    pub fn toJson(self: @This(), allocator: std.mem.Allocator) ![]const u8 {
-        var buffer = try std.ArrayList(u8).initCapacity(allocator, 256);
-        defer buffer.deinit(allocator);
+    pub fn toJson(self: @This(), gpa: std.mem.Allocator) ![]const u8 {
+        var buffer = try std.ArrayList(u8).initCapacity(gpa, 256);
+        defer buffer.deinit(gpa);
 
-        try buffer.append(allocator, '[');
+        try buffer.append(gpa, '[');
         for (self.items, 0..) |item, i| {
-            const text = try item.toJson(allocator);
-            defer allocator.free(text);
+            const text = try item.toJson(gpa);
+            defer gpa.free(text);
 
-            try buffer.appendSlice(allocator, text);
+            try buffer.appendSlice(gpa, text);
             if (i < self.items.len - 1) {
-                try buffer.append(allocator, ',');
+                try buffer.append(gpa, ',');
             }
         }
-        try buffer.append(allocator, ']');
+        try buffer.append(gpa, ']');
 
-        return try allocator.dupe(u8, buffer.items);
+        return try gpa.dupe(u8, buffer.items);
     }
 
-    pub fn clone(self: @This(), allocator: std.mem.Allocator) !ResourceList {
-        var new_items = try allocator.alloc(Resource, self.items.len);
+    pub fn clone(self: @This(), gpa: std.mem.Allocator) !ResourceList {
+        var new_items = try gpa.alloc(Resource, self.items.len);
 
         // On error, deinit any items that were already initialized and free the array.
         var initialized: usize = 0;
         errdefer {
             // deinitialize only the items that were constructed so far
-            for (new_items[0..initialized]) |it| it.deinit(allocator);
-            allocator.free(new_items);
+            for (new_items[0..initialized]) |it| it.deinit(gpa);
+            gpa.free(new_items);
         }
 
         // Clone each item; increment `initialized` after a successful clone.
         for (self.items, 0..) |item, i| {
-            new_items[i] = try item.clone(allocator);
+            new_items[i] = try item.clone(gpa);
             initialized += 1;
         }
 
