@@ -12,11 +12,9 @@ pub const main_parsers = .{
 };
 
 pub const main_params = clap.parseParamsComptime(
-    \\-h, --help Display tihs help and exit.
+    \\-h, --help Display this help and exit.
     \\--version Display version, and exit.
-    \\--log-level <LEVEL> Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Defualt level is warn.
+    \\--log-level <LEVEL> Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Default level is warn.
     \\<command>
     \\
 );
-
-pub const MainArgs = clap.ResultEx(clap.Help, &main_params, main_parsers);

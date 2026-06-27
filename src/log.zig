@@ -2,7 +2,7 @@ const std = @import("std");
 
 pub const Level = enum { info, debug, @"error", warn };
 
-pub var log_level: std.log.Level = .info;
+pub var log_level: std.log.Level = .warn;
 
 pub fn setLogLevel(level: Level) void {
     log_level = switch (level) {

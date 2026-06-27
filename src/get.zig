@@ -2,14 +2,13 @@ const std = @import("std");
 
 const clap = @import("clap");
 
-const args = @import("args.zig");
 const db = @import("database.zig");
 const logging = @import("log.zig");
 const types = @import("types.zig");
 const table = @import("table.zig");
+const utils = @import("utils.zig");
 
-pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator, main_args: args.MainArgs) !void {
-    _ = main_args;
+pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator) !void {
 
     var stdout_buf: [4096]u8 = undefined;
     var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buf);
@@ -19,13 +18,13 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
     const params = comptime clap.parseParamsComptime(
         \\-h, --help             Display this help and exit.
         \\-n, --namespace <STR>   Namespace to get resources from.
-        \\-A, --all-namespaces If present, list all objects across all namespaces. Specifing --namespace will be ignored.
+        \\-A, --all-namespaces If present, list all objects across all namespaces. Specifying --namespace will be ignored.
         \\-s, --sort Prints the resources in order.
         \\-e, --exclude <STR>... Exclude crd types. Multiple can be excluded eg: "-e <CRD> -e <CRD>"
         \\-o, --output <OUTPUT> Changes the output format of the results. [default: tty, tty|json|sqlite]
         \\-d, --database <PATH> Path to the sqlite file to save the results. If the files does not exist it will be created.
         \\-l, --label <STR> Set the label that will be saved with entries when using the --database option.
-        \\--log-level <LEVEL> Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Defualt level is warn.
+        \\--log-level <LEVEL> Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Default level is warn.
         \\
     );
 
@@ -146,7 +145,7 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
         if (map) |*m| try m.ensureTotalCapacity(v);
     }
     for (crdTypes.items) |line| {
-        if (matchedExclude(config.exclude, line)) |matched| {
+        if (utils.matchedExclude(config.exclude, line)) |matched| {
             std.log.debug("excluding resource {s} matched by -e {s}", .{ line, matched });
             continue;
         }
@@ -158,7 +157,7 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
             else => return err,
         };
         if (resource.items.len > 0) {
-            if (matchedExclude(config.exclude, resource.items[0].kind)) |matched| {
+            if (utils.matchedExclude(config.exclude, resource.items[0].kind)) |matched| {
                 std.log.debug("excluding {s}/{s} matched by -e {s}", .{ resource.items[0].apiVersion, resource.items[0].kind, matched });
                 resource.deinit(gpa);
                 continue;
@@ -205,15 +204,6 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
         try stdout.print("}}\n", .{});
         try stdout.flush();
     }
-}
-
-fn matchedExclude(haystack: ?[]const []const u8, needle: []const u8) ?[]const u8 {
-    if (haystack) |stack| {
-        for (stack) |s| {
-            if (std.ascii.eqlIgnoreCase(s, needle)) return s;
-        }
-    }
-    return null;
 }
 
 fn getCRJson(io: std.Io, allocator: std.mem.Allocator, config: types.Config, crd: []const u8) !types.ResourceList {
@@ -278,7 +268,7 @@ fn getCrdList(io: std.Io, allocator: std.mem.Allocator) !std.ArrayList([]const u
     defer allocator.free(result.stderr);
 
     if (result.term.exited != 0) {
-        std.log.debug("stdout: {s}. stderr: {s}", .{ result.stdout, result.stdout });
+        std.log.debug("stdout: {s}. stderr: {s}", .{ result.stdout, result.stderr });
         return error.BadExit;
     }
     var lines: std.ArrayList([]const u8) = .empty;

@@ -1,20 +1,18 @@
 const std = @import("std");
-const args = @import("args.zig");
 const clap = @import("clap");
 const logging = @import("log.zig");
 const db = @import("database.zig");
 const table = @import("table.zig");
 const types = @import("types.zig");
 
-pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator, main_args: args.MainArgs) !void {
-    _ = main_args;
+pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator) !void {
 
     const params = comptime clap.parseParamsComptime(
         \\-h, --help Display this help and exit.
         \\-d, --database <PATH> Path to SQLite database to load data from.
         \\-e, --exclude <STR>... Exclude resource types. Multiple can be excluded eg: "-e <KIND> -e <KIND>"
         \\-o, --output <OUTPUT> Changes the output format of the results. [default: tty, tty|json]
-        \\--log-level <LEVEL> Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Defualt level is warn.
+        \\--log-level <LEVEL> Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Default level is warn.
         \\<LABEL> Older label used.
         \\<LABEL> Newer label used.
         \\
@@ -132,7 +130,7 @@ fn printSection(io: std.Io, header: []const u8, resources: types.ResourceList, w
 
 fn printByKind(io: std.Io, resources: types.ResourceList) !void {
     if (resources.items.len == 0) {
-        std.log.debug("Resource list is emtpy, early exit.", .{});
+        std.log.debug("Resource list is empty, early exit.", .{});
         return;
     }
 
