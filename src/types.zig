@@ -43,11 +43,12 @@ pub const DiffConfig = struct {
     database: []const u8,
     label_a: []const u8,
     label_b: []const u8,
+    output: Output,
 
     pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
         try writer.print(
-            "Configuration:\n\tdatabase: {s}\n\tlabel A: {s}\n\tlabel B: {s}\n",
-            .{ self.database, self.label_a, self.label_b },
+            "Configuration:\n\tdatabase: {s}\n\tlabel A: {s}\n\tlabel B: {s}\n\toutput: {s}\n",
+            .{ self.database, self.label_a, self.label_b, @tagName(self.output) },
         );
         try writer.flush();
     }
