@@ -1,0 +1,3 @@
+kind: Added
+body: diff command json output. Now calling the diff function with `--output=json` will send the differences between labels to standard out in a json blob.
+time: 2026-06-27T01:17:30.504501393+01:00
