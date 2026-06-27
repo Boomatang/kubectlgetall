@@ -1,0 +1,3 @@
+kind: Added
+body: Exclude filtering for diff command. The diff command can now filter out resources when using -e/--exclude flag.
+time: 2026-06-27T01:58:22.794003891+01:00

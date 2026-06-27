@@ -12,6 +12,7 @@ pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iter
     const params = comptime clap.parseParamsComptime(
         \\-h, --help Display this help and exit.
         \\-d, --database <PATH> Path to SQLite database to load data from.
+        \\-e, --exclude <STR>... Exclude resource types. Multiple can be excluded eg: "-e <KIND> -e <KIND>"
         \\-o, --output <OUTPUT> Changes the output format of the results. [default: tty, tty|json]
         \\--log-level <LEVEL> Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Defualt level is warn.
         \\<LABEL> Older label used.
@@ -21,6 +22,7 @@ pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iter
 
     const parsers = comptime .{
         .PATH = clap.parsers.string,
+        .STR = clap.parsers.string,
         .LABEL = clap.parsers.string,
         .LEVEL = clap.parsers.enumeration(logging.Level),
         .OUTPUT = clap.parsers.enumeration(types.Output),
@@ -44,25 +46,22 @@ pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iter
         logging.setLogLevel(l);
     }
 
-    const database = res.args.database orelse return error.MissingDatabase;
-    const label_a = res.positionals[0] orelse return error.MissingArg1;
-    const label_b = res.positionals[1] orelse return error.MissingArg2;
-
     const config = types.DiffConfig{
-        .database = database,
-        .label_a = label_a,
-        .label_b = label_b,
+        .database = res.args.database orelse return error.MissingDatabase,
+        .label_a = res.positionals[0] orelse return error.MissingArg1,
+        .label_b = res.positionals[1] orelse return error.MissingArg2,
         .output = res.args.output orelse .tty,
+        .exclude = if (res.args.exclude.len > 0) res.args.exclude else null,
     };
     std.log.debug("{f}", .{config});
 
     try db.init(config.database);
 
-    const added_resources = try db.added(gpa, config.label_a, config.label_b);
+    const added_resources = try db.added(gpa, config);
     defer added_resources.deinit(gpa);
-    const updated_resources = try db.updated(gpa, config.label_a, config.label_b);
+    const updated_resources = try db.updated(gpa, config);
     defer updated_resources.deinit(gpa);
-    const deleted_resources = try db.deleted(gpa, config.label_a, config.label_b);
+    const deleted_resources = try db.deleted(gpa, config);
     defer deleted_resources.deinit(gpa);
 
     switch (config.output) {

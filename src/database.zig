@@ -14,28 +14,28 @@ pub fn init(database: []const u8) !void {
     try db.exec("CREATE TABLE IF NOT EXISTS results(id INTEGER PRIMARY KEY AUTOINCREMENT, apiVersion, kind, name, namespace, creationTimestamp, resourceVersion, generation, resultTimestamp, resultLabel)", .{});
 }
 
-pub fn added(allocator: std.mem.Allocator, label_a: []const u8, label_b: []const u8) !types.ResourceList {
-    std.log.debug("getting newer resource under label: {s}, compared to label: {s}", .{ label_b, label_a });
+pub fn added(allocator: std.mem.Allocator, config: types.DiffConfig) !types.ResourceList {
+    std.log.debug("getting newer resource under label: {s}, compared to label: {s}", .{ config.label_b, config.label_a });
     return queryResources(allocator, added_sql, .{
-        .label_a = sqlite.text(label_a),
-        .label_b = sqlite.text(label_b),
-    });
+        .label_a = sqlite.text(config.label_a),
+        .label_b = sqlite.text(config.label_b),
+    }, config.exclude);
 }
 
-pub fn updated(allocator: std.mem.Allocator, label_a: []const u8, label_b: []const u8) !types.ResourceList {
-    std.log.debug("getting updated resource under label: {s}, compared to label: {s}", .{ label_b, label_a });
+pub fn updated(allocator: std.mem.Allocator, config: types.DiffConfig) !types.ResourceList {
+    std.log.debug("getting updated resource under label: {s}, compared to label: {s}", .{ config.label_b, config.label_a });
     return queryResources(allocator, updated_sql, .{
-        .label_a = sqlite.text(label_a),
-        .label_b = sqlite.text(label_b),
-    });
+        .label_a = sqlite.text(config.label_a),
+        .label_b = sqlite.text(config.label_b),
+    }, config.exclude);
 }
 
-pub fn deleted(allocator: std.mem.Allocator, label_a: []const u8, label_b: []const u8) !types.ResourceList {
-    std.log.debug("getting deleted resource under label: {s}, compared to label: {s}", .{ label_a, label_b });
+pub fn deleted(allocator: std.mem.Allocator, config: types.DiffConfig) !types.ResourceList {
+    std.log.debug("getting deleted resource under label: {s}, compared to label: {s}", .{ config.label_a, config.label_b });
     return queryResources(allocator, deleted_sql, .{
-        .label_a = sqlite.text(label_a),
-        .label_b = sqlite.text(label_b),
-    });
+        .label_a = sqlite.text(config.label_a),
+        .label_b = sqlite.text(config.label_b),
+    }, config.exclude);
 }
 
 pub fn add(enties: types.ResourceList, label: ?[]const u8, timestamp: i64) !void {
@@ -118,7 +118,16 @@ const DiffRow = struct {
     generation: ?i64,
 };
 
-fn queryResources(allocator: std.mem.Allocator, comptime sql: []const u8, params: DiffParams) !types.ResourceList {
+fn matchedExclude(haystack: ?[]const []const u8, needle: []const u8) ?[]const u8 {
+    if (haystack) |stack| {
+        for (stack) |s| {
+            if (std.ascii.eqlIgnoreCase(s, needle)) return s;
+        }
+    }
+    return null;
+}
+
+fn queryResources(allocator: std.mem.Allocator, comptime sql: []const u8, params: DiffParams, exclude: ?[]const []const u8) !types.ResourceList {
     const stmt = try db.prepare(DiffParams, DiffRow, sql);
     defer stmt.finalize();
 
@@ -131,6 +140,10 @@ fn queryResources(allocator: std.mem.Allocator, comptime sql: []const u8, params
     }
 
     while (try stmt.step()) |row| {
+        if (matchedExclude(exclude, row.kind.data)) |matched| {
+            std.log.debug("excluding {s}/{s} matched by -e {s}", .{ row.apiVersion.data, row.kind.data, matched });
+            continue;
+        }
         const resource = types.Resource{
             .kind = try allocator.dupe(u8, row.kind.data),
             .apiVersion = try allocator.dupe(u8, row.apiVersion.data),

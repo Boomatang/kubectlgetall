@@ -146,9 +146,8 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
         if (map) |*m| try m.ensureTotalCapacity(v);
     }
     for (crdTypes.items) |line| {
-        if (contains(config.exclude, line)) {
-            std.log.debug("filter out: {s}", .{line});
-
+        if (matchedExclude(config.exclude, line)) |matched| {
+            std.log.debug("excluding resource {s} matched by -e {s}", .{ line, matched });
             continue;
         }
 
@@ -158,6 +157,13 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
             },
             else => return err,
         };
+        if (resource.items.len > 0) {
+            if (matchedExclude(config.exclude, resource.items[0].kind)) |matched| {
+                std.log.debug("excluding {s}/{s} matched by -e {s}", .{ resource.items[0].apiVersion, resource.items[0].kind, matched });
+                resource.deinit(gpa);
+                continue;
+            }
+        }
         switch (config.output) {
             .tty => {
                 defer {
@@ -201,14 +207,13 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
     }
 }
 
-fn contains(haystack: ?[]const []const u8, needle: []const u8) bool {
+fn matchedExclude(haystack: ?[]const []const u8, needle: []const u8) ?[]const u8 {
     if (haystack) |stack| {
         for (stack) |s| {
-            if (std.mem.eql(u8, s, needle)) return true;
+            if (std.ascii.eqlIgnoreCase(s, needle)) return s;
         }
     }
-
-    return false;
+    return null;
 }
 
 fn getCRJson(io: std.Io, allocator: std.mem.Allocator, config: types.Config, crd: []const u8) !types.ResourceList {

@@ -44,12 +44,25 @@ pub const DiffConfig = struct {
     label_a: []const u8,
     label_b: []const u8,
     output: Output,
+    exclude: ?[]const []const u8 = null,
 
     pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
         try writer.print(
-            "Configuration:\n\tdatabase: {s}\n\tlabel A: {s}\n\tlabel B: {s}\n\toutput: {s}\n",
+            "Configuration:\n\tdatabase: {s}\n\tlabel A: {s}\n\tlabel B: {s}\n\toutput: {s}\n\texclude: ",
             .{ self.database, self.label_a, self.label_b, @tagName(self.output) },
         );
+
+        if (self.exclude) |items| {
+            try writer.writeAll("[");
+            for (items, 0..) |item, i| {
+                if (i > 0) try writer.writeAll(", ");
+                try writer.print("{s}", .{item});
+            }
+            try writer.writeAll("]\n");
+        } else {
+            try writer.writeAll("null\n");
+        }
+
         try writer.flush();
     }
 };
