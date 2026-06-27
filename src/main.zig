@@ -49,7 +49,7 @@ pub fn main(init: std.process.Init) !void {
         return error.MissingCommand;
     };
     switch (command) {
-        .get => try get.getMain(init.io, init.gpa, &iter, res),
-        .diff => try diff.diffMain(init.io, init.gpa, &iter, res),
+        .get => try get.getMain(init.io, init.gpa, &iter),
+        .diff => try diff.diffMain(init.io, init.gpa, &iter),
     }
 }

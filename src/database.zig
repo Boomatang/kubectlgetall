@@ -1,6 +1,7 @@
 const std = @import("std");
 const sqlite = @import("sqlite");
 const types = @import("types.zig");
+const utils = @import("utils.zig");
 
 var db: sqlite.Database = undefined;
 
@@ -118,15 +119,6 @@ const DiffRow = struct {
     generation: ?i64,
 };
 
-fn matchedExclude(haystack: ?[]const []const u8, needle: []const u8) ?[]const u8 {
-    if (haystack) |stack| {
-        for (stack) |s| {
-            if (std.ascii.eqlIgnoreCase(s, needle)) return s;
-        }
-    }
-    return null;
-}
-
 fn queryResources(allocator: std.mem.Allocator, comptime sql: []const u8, params: DiffParams, exclude: ?[]const []const u8) !types.ResourceList {
     const stmt = try db.prepare(DiffParams, DiffRow, sql);
     defer stmt.finalize();
@@ -140,7 +132,7 @@ fn queryResources(allocator: std.mem.Allocator, comptime sql: []const u8, params
     }
 
     while (try stmt.step()) |row| {
-        if (matchedExclude(exclude, row.kind.data)) |matched| {
+        if (utils.matchedExclude(exclude, row.kind.data)) |matched| {
             std.log.debug("excluding {s}/{s} matched by -e {s}", .{ row.apiVersion.data, row.kind.data, matched });
             continue;
         }

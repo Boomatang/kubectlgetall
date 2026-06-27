@@ -101,7 +101,9 @@ pub const Resource = struct {
         var buffer = try std.ArrayList(u8).initCapacity(allocator, 256);
         defer buffer.deinit(allocator);
 
-        const initial_string = try std.fmt.allocPrint(allocator, "{{\"name\": \"{s}\", \"namespace\": \"{s}\", \"createTimestamp\": \"{s}\"", .{
+        const initial_string = try std.fmt.allocPrint(allocator, "{{\"kind\": \"{s}\", \"apiVersion\": \"{s}\", \"name\": \"{s}\", \"namespace\": \"{s}\", \"creationTimestamp\": \"{s}\"", .{
+            self.kind,
+            self.apiVersion,
             self.metadata.name,
             self.metadata.namespace,
             self.metadata.creationTimestamp,
@@ -110,7 +112,7 @@ pub const Resource = struct {
         defer allocator.free(initial_string);
 
         if (self.metadata.resourceVersion) |version| {
-            const resource_version = try std.fmt.allocPrint(allocator, ", \"resourceVersion\": {s}", .{version});
+            const resource_version = try std.fmt.allocPrint(allocator, ", \"resourceVersion\": \"{s}\"", .{version});
             defer allocator.free(resource_version);
             try buffer.appendSlice(allocator, resource_version);
         }
