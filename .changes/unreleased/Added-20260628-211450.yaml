@@ -1,0 +1,3 @@
+kind: Added
+body: Snapshot feature allows capturing snapshots of a cluster over time. Results are saved to a database only.
+time: 2026-06-28T21:14:50.344574667+01:00
