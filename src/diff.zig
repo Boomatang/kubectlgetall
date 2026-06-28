@@ -5,29 +5,11 @@ const db = @import("database.zig");
 const table = @import("table.zig");
 const types = @import("types.zig");
 const help = @import("help.zig");
+const args = @import("args.zig");
 
 pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator) !void {
-    const params = comptime clap.parseParamsComptime(
-        \\-h, --help Display this help and exit.
-        \\-d, --database <PATH> Path to SQLite database to load data from.
-        \\-e, --exclude <STR>... Exclude resource types. Multiple can be excluded eg: "-e <KIND> -e <KIND>"
-        \\-o, --output <OUTPUT> Changes the output format of the results. [default: tty, tty|json]
-        \\--log-level <LEVEL> Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Default level is warn.
-        \\<LABEL> Older label used.
-        \\<LABEL> Newer label used.
-        \\
-    );
-
-    const parsers = comptime .{
-        .PATH = clap.parsers.string,
-        .STR = clap.parsers.string,
-        .LABEL = clap.parsers.string,
-        .LEVEL = clap.parsers.enumeration(logging.Level),
-        .OUTPUT = clap.parsers.enumeration(types.Output),
-    };
-
     var diag = clap.Diagnostic{};
-    var res = clap.parseEx(clap.Help, &params, parsers, iter, .{
+    var res = clap.parseEx(clap.Help, &args.diff_params, args.diff_parsers, iter, .{
         .diagnostic = &diag,
         .allocator = gpa,
     }) catch |err| {
