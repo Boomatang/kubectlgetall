@@ -52,6 +52,11 @@ pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iter
             try printSection(io, "Added Resources", added_resources, max_width);
             try printSection(io, "Updated Resources", updated_resources, max_width);
             try printSection(io, "Removed Resources", deleted_resources, max_width);
+            try printSummary(io, max_width, .{
+                .added = added_resources,
+                .updated = updated_resources,
+                .deleted = deleted_resources,
+            });
         },
         .json => {
             try printJson(io, gpa, added_resources, updated_resources, deleted_resources);
@@ -74,6 +79,11 @@ fn printJson(io: std.Io, gpa: std.mem.Allocator, added: types.ResourceList, upda
     try printResourceListJson(stdout, gpa, updated);
     try stdout.print(", \"deleted\": ", .{});
     try printResourceListJson(stdout, gpa, deleted);
+    try stdout.print(", \"summary\": {{\"added\": {}, \"updated\": {}, \"deleted\": {}}}", .{
+        added.items.len,
+        updated.items.len,
+        deleted.items.len,
+    });
     try stdout.print("}}\n", .{});
     try stdout.flush();
 }
@@ -146,5 +156,24 @@ fn section(io: std.Io, header: []const u8, width: usize) !void {
     try stdout.print("{s}\n", .{header});
     for (0..width) |_| try stdout.print("=", .{});
     try stdout.print("{s}\n\n", .{reset});
+    try stdout.flush();
+}
+
+const values = struct {
+    added: types.ResourceList,
+    updated: types.ResourceList,
+    deleted: types.ResourceList,
+};
+
+fn printSummary(io: std.Io, width: usize, value: values) !void {
+    try section(io, "Summary", width);
+
+    var buf: [4096]u8 = undefined;
+    var file_writer = std.Io.File.stdout().writer(io, &buf);
+    const stdout = &file_writer.interface;
+
+    try stdout.print("Added: {}\n", .{value.added.items.len});
+    try stdout.print("Updated: {}\n", .{value.updated.items.len});
+    try stdout.print("Removed: {}\n", .{value.deleted.items.len});
     try stdout.flush();
 }
