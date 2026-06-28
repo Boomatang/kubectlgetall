@@ -8,38 +8,15 @@ const types = @import("types.zig");
 const table = @import("table.zig");
 const utils = @import("utils.zig");
 const help = @import("help.zig");
+const args = @import("args.zig");
 
 pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator) !void {
     var stdout_buf: [4096]u8 = undefined;
     var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buf);
     const stdout = &stdout_writer.interface;
-    // First we specify what parameters our program can take.
-    // We can use `parseParamsComptime` to parse a string into an array of `Param(Help)`.
-    const params = comptime clap.parseParamsComptime(
-        \\-h, --help             Display this help and exit.
-        \\-n, --namespace <STR>   Namespace to get resources from.
-        \\-A, --all-namespaces If present, list all objects across all namespaces. Specifying --namespace will be ignored.
-        \\-s, --sort Prints the resources in order.
-        \\-e, --exclude <STR>... Exclude crd types. Multiple can be excluded eg: "-e <CRD> -e <CRD>"
-        \\-o, --output <OUTPUT> Changes the output format of the results. [default: tty, tty|json|sqlite]
-        \\-d, --database <PATH> Path to the sqlite file to save the results. If the files does not exist it will be created.
-        \\-l, --label <STR> Set the label that will be saved with entries when using the --database option.
-        \\--log-level <LEVEL> Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Default level is warn.
-        \\
-    );
 
-    const parsers = comptime .{
-        .OUTPUT = clap.parsers.enumeration(types.Output),
-        .STR = clap.parsers.string,
-        .PATH = clap.parsers.string,
-        .LEVEL = clap.parsers.enumeration(logging.Level),
-    };
-
-    // Initialize our diagnostics, which can be used for reporting useful errors.
-    // This is optional. You can also pass `.{}` to `clap.parse` if you don't
-    // care about the extra information `Diagnostic` provides.
     var diag = clap.Diagnostic{};
-    var res = clap.parseEx(clap.Help, &params, parsers, iter, .{
+    var res = clap.parseEx(clap.Help, &args.get_params, args.get_parsers, iter, .{
         .diagnostic = &diag,
         .allocator = gpa,
     }) catch |err| {
