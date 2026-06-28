@@ -10,6 +10,7 @@ const diff = @import("diff.zig");
 const get = @import("get.zig");
 const logging = @import("log.zig");
 const help = @import("help.zig");
+const snapshot = @import("snapshot.zig");
 
 pub const std_options: std.Options = .{
     .log_level = .debug,
@@ -59,5 +60,6 @@ pub fn main(init: std.process.Init) !void {
     switch (command) {
         .get => try get.getMain(init.io, init.gpa, &iter),
         .diff => try diff.diffMain(init.io, init.gpa, &iter),
+        .snapshot => try snapshot.cmd(init.io, init.gpa, &iter),
     }
 }

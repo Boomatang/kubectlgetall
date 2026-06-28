@@ -9,6 +9,10 @@ pub fn matchedExclude(haystack: ?[]const []const u8, needle: []const u8) ?[]cons
     return null;
 }
 
+pub fn compareStrings(_: void, lhs: []const u8, rhs: []const u8) bool {
+    return std.mem.lessThan(u8, lhs, rhs);
+}
+
 test "null haystack returns null" {
     try std.testing.expectEqual(null, matchedExclude(null, "Pod"));
 }

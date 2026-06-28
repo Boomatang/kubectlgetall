@@ -33,12 +33,13 @@ kubectlgetall -n <namespace>
 There are some flags that can be passed.
 ```shell
 USAGE:
-  kubectlgetall <COMMAND> [FLAGS] 
+  kubectlgetall <COMMAND> [FLAGS]
 
 COMMANDS:
 get                   Get list of resource on cluster.
 diff                  Show the resources Added, Updated and Removed
                       from a cluster by comparing two labels defined in the database.
+snapshot              Take a snapshot of the resouces on the cluster at given intervals.
 
 GLOBAL FLAGS:
 -h, --help            Display this help and exit.

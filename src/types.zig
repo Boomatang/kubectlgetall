@@ -67,6 +67,49 @@ pub const DiffConfig = struct {
     }
 };
 
+pub const SnapshotConfig = struct {
+    database: []const u8,
+    label: []const u8,
+    exclude: ?[]const []const u8 = null,
+    count: u64 = 0,
+    limit: i64 = 0,
+    delay: i64 = 60,
+    namespace: []const u8,
+    all: bool,
+    startTime: i64,
+    interation: usize = 0,
+
+    pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        try writer.print(
+            "Configuration:\n\tnamespace: {s}\n\tall namespaces: {}\n\tdatabase: {s}\n\tlabel: {s}\n\tstart time: {}\n\tcount: {}\n\tlimit: {}\n\tdelay: {}\n\tinteration: {}\n\texclude: ",
+            .{
+                self.namespace,
+                self.all,
+                self.database,
+                self.label,
+                self.startTime,
+                self.count,
+                self.limit,
+                self.delay,
+                self.interation,
+            },
+        );
+
+        if (self.exclude) |items| {
+            try writer.writeAll("[");
+            for (items, 0..) |item, i| {
+                if (i > 0) try writer.writeAll(", ");
+                try writer.print("{s}", .{item});
+            }
+            try writer.writeAll("]\n");
+        } else {
+            try writer.writeAll("null\n");
+        }
+
+        try writer.flush();
+    }
+};
+
 pub const Metadata = struct {
     name: []const u8,
     namespace: []const u8,

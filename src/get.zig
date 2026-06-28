@@ -9,6 +9,7 @@ const table = @import("table.zig");
 const utils = @import("utils.zig");
 const help = @import("help.zig");
 const args = @import("args.zig");
+const cluster = @import("cluster.zig");
 
 pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator) !void {
     var stdout_buf: [4096]u8 = undefined;
@@ -83,7 +84,7 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
 
     std.log.debug("{f}", .{config});
 
-    var crdTypes = getCrdList(io, gpa) catch |err| switch (err) {
+    var crdTypes = cluster.getCrdList(io, gpa) catch |err| switch (err) {
         error.BadExit => {
             std.log.err("Kubectl returned a none zero exit code", .{});
             std.process.exit(1);
@@ -98,7 +99,7 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
     }
 
     if (config.sort) {
-        std.mem.sort([]const u8, crdTypes.items, {}, compareStrings);
+        std.mem.sort([]const u8, crdTypes.items, {}, utils.compareStrings);
     }
 
     if (config.output == .sqlite) {
@@ -129,7 +130,7 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
             continue;
         }
 
-        const resource = getCRJson(io, gpa, config, line) catch |err| switch (err) {
+        const resource = cluster.getCRJson(io, gpa, config, line) catch |err| switch (err) {
             error.NoData => {
                 continue;
             },
@@ -183,91 +184,4 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
         try stdout.print("}}\n", .{});
         try stdout.flush();
     }
-}
-
-fn getCRJson(io: std.Io, allocator: std.mem.Allocator, config: types.Config, crd: []const u8) !types.ResourceList {
-    const initialcmd = &[_][]const u8{ "kubectl", "get", "--ignore-not-found", crd, "--output", "json" };
-
-    var cmd: std.ArrayList([]const u8) = .empty;
-    defer cmd.deinit(allocator);
-
-    try cmd.appendSlice(allocator, initialcmd);
-    if (config.all) {
-        try cmd.append(allocator, "--all-namespaces");
-    } else {
-        try cmd.append(allocator, "--namespace");
-        try cmd.append(allocator, config.namespace);
-    }
-
-    const ownedCmd = try cmd.toOwnedSlice(allocator);
-    defer allocator.free(ownedCmd);
-
-    const result = std.process.run(allocator, io, .{
-        .argv = ownedCmd,
-    }) catch |err| {
-        std.log.err("Failed to run kubectl: {}", .{err});
-        return err;
-    };
-    defer allocator.free(result.stdout);
-    defer allocator.free(result.stderr);
-
-    if (result.term.exited != 0) {
-        return error.BadExit;
-    }
-
-    if (result.stdout.len == 0) {
-        return error.NoData;
-    }
-
-    const parsed: std.json.Parsed(types.ResourceList) = std.json.parseFromSlice(types.ResourceList, allocator, result.stdout, .{ .ignore_unknown_fields = true }) catch |err| switch (err) {
-        std.json.ParseFromValueError.MissingField => return error.NotFound,
-        else => return err,
-    };
-
-    defer {
-        parsed.deinit();
-    }
-
-    return parsed.value.clone(allocator);
-}
-
-fn compareStrings(_: void, lhs: []const u8, rhs: []const u8) bool {
-    return std.mem.lessThan(u8, lhs, rhs);
-}
-
-fn getCrdList(io: std.Io, gpa: std.mem.Allocator) !std.ArrayList([]const u8) {
-    const cmd = [_][]const u8{ "kubectl", "api-resources", "--verbs=list", "--namespaced", "-o", "name" };
-    const result = std.process.run(gpa, io, .{
-        .argv = &cmd,
-    }) catch |err| {
-        std.log.err("Failed to run kubectl: {}", .{err});
-        return err;
-    };
-    defer {
-        gpa.free(result.stdout);
-        gpa.free(result.stderr);
-    }
-
-    if (result.term.exited != 0) {
-        std.log.debug("stdout: {s}. stderr: {s}", .{ result.stdout, result.stderr });
-        return error.BadExit;
-    }
-    var lines: std.ArrayList([]const u8) = .empty;
-    errdefer {
-        for (lines.items) |item| {
-            gpa.free(item);
-        }
-        lines.deinit(gpa);
-    }
-
-    var iter = std.mem.splitScalar(u8, result.stdout, '\n');
-    while (iter.next()) |line| {
-        if (line.len > 0) {
-            const owned = try gpa.dupe(u8, line);
-            errdefer gpa.free(owned);
-            try lines.append(gpa, owned);
-        }
-    }
-
-    return lines;
 }
