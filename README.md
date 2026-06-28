@@ -32,37 +32,19 @@ kubectlgetall -n <namespace>
 
 There are some flags that can be passed.
 ```shell
-kubectlgetall --help
-    -h, --help
-            Display this help and exit.
+USAGE:
+  kubectlgetall <COMMAND> [FLAGS] 
 
-    -n, --namespace <STR>
-            Namespace to get resources from.
+COMMANDS:
+get                   Get list of resource on cluster.
+diff                  Show the resources Added, Updated and Removed
+                      from a cluster by comparing two labels defined in the database.
 
-    -A, --all-namespaces
-            If present, list all objects across all namespaces. Specifing --namespace will be ignored.
-
-    -s, --sort
-            Prints the resources in order.
-
-    -e, --exclude <STR>...
-            Exclude crd types. Multiple can be excluded eg: "-e <CRD> -e <CRD>"
-
-    -o, --output <OUTPUT>
-            Changes the output format of the results.
-
-    -d, --database <PATH>
-            Path to the sqlite file to save the results. If the files does not exist it will be created.
-
-    -l, --label <STR>
-            Set the label that will be saved with entries when using the --database option.
-
-        --log-level <LEVEL>
-            Set the log level. All logs are saved to file. Possible values are (debug, info, warn, error). Defualt level is warn.
-
-        --version
-            Display verson, and exit.
-
+GLOBAL FLAGS:
+-h, --help            Display this help and exit.
+--version             Display version, and exit.
+--log-level <LEVEL>   Set the log level. All logs are saved to file. 
+                      Possible values are (debug, info, warn, error). Default level is warn.
 ```
 
 ## Dev

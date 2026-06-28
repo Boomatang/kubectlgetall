@@ -9,6 +9,7 @@ const arg = @import("args.zig");
 const diff = @import("diff.zig");
 const get = @import("get.zig");
 const logging = @import("log.zig");
+const help = @import("help.zig");
 
 pub const std_options: std.Options = .{
     .log_level = .debug,
@@ -32,11 +33,18 @@ pub fn main(init: std.process.Init) !void {
     };
     defer res.deinit();
 
-    if (res.args.help != 0)
-        return clap.helpToFile(init.io, .stdout(), clap.Help, &arg.main_params, .{});
+    if (res.args.help != 0) {
+        try help.main(init.io, .stdout());
+        std.process.exit(0);
+    }
 
     if (res.args.version != 0) {
-        std.log.info("{s}, {s}", .{ build_options.name, build_options.version });
+        const version = try std.fmt.allocPrint(init.gpa, "{s}, {s}\n", .{ build_options.name, build_options.version });
+        defer init.gpa.free(version);
+        var buf: [1024]u8 = undefined;
+        var writer = std.Io.File.stdout().writer(init.io, &buf);
+        try writer.interface.writeAll(version);
+        try writer.interface.flush();
         std.process.exit(0);
     }
 
@@ -45,7 +53,7 @@ pub fn main(init: std.process.Init) !void {
     }
 
     const command = res.positionals[0] orelse {
-        try clap.helpToFile(init.io, .stdout(), clap.Help, &arg.main_params, .{});
+        try help.main(init.io, .stdout());
         return error.MissingCommand;
     };
     switch (command) {

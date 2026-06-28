@@ -4,9 +4,9 @@ const logging = @import("log.zig");
 const db = @import("database.zig");
 const table = @import("table.zig");
 const types = @import("types.zig");
+const help = @import("help.zig");
 
 pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator) !void {
-
     const params = comptime clap.parseParamsComptime(
         \\-h, --help Display this help and exit.
         \\-d, --database <PATH> Path to SQLite database to load data from.
@@ -37,8 +37,10 @@ pub fn diffMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iter
     };
     defer res.deinit();
 
-    if (res.args.help != 0)
-        return clap.helpToFile(io, .stdout(), clap.Help, &params, .{});
+    if (res.args.help != 0) {
+        try help.diff(io, .stdout());
+        std.process.exit(0);
+    }
 
     if (res.args.@"log-level") |l| {
         logging.setLogLevel(l);
