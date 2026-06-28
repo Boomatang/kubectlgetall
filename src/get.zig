@@ -7,6 +7,7 @@ const logging = @import("log.zig");
 const types = @import("types.zig");
 const table = @import("table.zig");
 const utils = @import("utils.zig");
+const help = @import("help.zig");
 
 pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator) !void {
     var stdout_buf: [4096]u8 = undefined;
@@ -56,8 +57,10 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
     var label: []const u8 = &[_]u8{};
     var exclude: ?[]const []const u8 = null;
 
-    if (res.args.help != 0)
-        return clap.helpToFile(io, .stdout(), clap.Help, &params, .{});
+    if (res.args.help != 0) {
+        try help.get(io, .stdout());
+        std.process.exit(0);
+    }
 
     if (res.args.namespace) |n| {
         namespace = n;
