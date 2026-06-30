@@ -27,58 +27,23 @@ pub fn getMain(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Itera
     };
     defer res.deinit();
 
-    var namespace: []const u8 = &[_]u8{};
-    var allNamespaces = false;
-    var sort = false;
-    var output = types.Output.tty;
-    var database: []const u8 = &[_]u8{};
-    var label: []const u8 = &[_]u8{};
-    var exclude: ?[]const []const u8 = null;
-
     if (res.args.help != 0) {
         try help.get(io, .stdout());
         std.process.exit(0);
-    }
-
-    if (res.args.namespace) |n| {
-        namespace = n;
-    }
-
-    if (res.args.@"all-namespaces" == 1) {
-        allNamespaces = true;
-    }
-
-    if (res.args.sort == 1) {
-        sort = true;
-    }
-
-    if (res.args.output) |o| {
-        output = o;
-    }
-
-    if (res.args.database) |d| {
-        database = d;
-    }
-
-    if (res.args.label) |l| {
-        label = l;
     }
 
     if (res.args.@"log-level") |l| {
         logging.setLogLevel(l);
     }
 
-    if (res.args.exclude.len > 0) {
-        exclude = res.args.exclude;
-    }
     const config = types.Config{
-        .namespace = namespace,
-        .all = allNamespaces,
-        .sort = sort,
-        .exclude = exclude,
-        .output = output,
-        .database = database,
-        .label = label,
+        .namespace = if (res.args.namespace) |v| v else "",
+        .all = (res.args.@"all-namespaces" == 1),
+        .sort = (res.args.sort == 1),
+        .exclude = if (res.args.exclude.len > 0) res.args.exclude else null,
+        .output = if (res.args.output) |v| v else .tty,
+        .database = if (res.args.database) |v| v else "",
+        .label = if (res.args.label) |v| v else "",
         .timestamp = std.Io.Timestamp.now(io, .real).toSeconds(),
     };
 
