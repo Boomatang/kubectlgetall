@@ -3,6 +3,8 @@ const std = @import("std");
 pub const Output = enum { tty, json, sqlite };
 pub const Bool = enum { true, false };
 
+pub const DefaultDelay: i64 = 60;
+
 pub const Config = struct {
     namespace: []const u8,
     all: bool,
@@ -73,7 +75,7 @@ pub const SnapshotConfig = struct {
     exclude: ?[]const []const u8 = null,
     count: u64 = 0,
     limit: i64 = 0,
-    delay: i64 = 60,
+    delay: i64 = DefaultDelay,
     namespace: []const u8,
     all: bool,
     startTime: i64,

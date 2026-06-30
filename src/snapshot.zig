@@ -34,14 +34,13 @@ pub fn cmd(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator)
         .database = res.args.database orelse return error.MissingDatabase,
         .label = res.args.label orelse return error.MissingLabel,
         .exclude = if (res.args.exclude.len > 0) res.args.exclude else null,
-        .all = if (res.args.@"all-namespaces" == 1) true else false,
+        .all = (res.args.@"all-namespaces" == 1),
         .namespace = if (res.args.namespace) |n| n else "",
         .startTime = std.Io.Timestamp.now(io, .real).toSeconds(),
+        .delay = if (res.args.delay) |v| @intCast(v) else types.DefaultDelay,
+        .limit = if (res.args.limit) |v| @intCast(v) else 0,
+        .count = if (res.args.count) |v| v else 0,
     };
-
-    if (res.args.delay) |v| config.delay = @intCast(v);
-    if (res.args.limit) |v| config.limit = @intCast(v);
-    if (res.args.count) |v| config.count = v;
 
     std.log.debug("{f}", .{config});
 
@@ -88,7 +87,6 @@ pub fn cmd(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator)
                 },
                 else => return err,
             };
-            defer resource.deinit(gpa);
 
             if (resource.items.len > 0) {
                 if (utils.matchedExclude(config.exclude, resource.items[0].kind)) |matched| {
@@ -97,6 +95,7 @@ pub fn cmd(io: std.Io, gpa: std.mem.Allocator, iter: *std.process.Args.Iterator)
                     continue;
                 }
             }
+            defer resource.deinit(gpa);
 
             try db.add(resource, label, timestamp);
         }
