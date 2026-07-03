@@ -1,0 +1,15 @@
+---
+apiVersion: kuadrant.io/v1
+kind: RateLimitPolicy
+metadata:
+  name: httpbin-ratelimit
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: httpbin-route
+  limits:
+    "general-user":
+      rates:
+      - limit: 5
+        window: 10s

@@ -1,0 +1,4 @@
+resources:
+  - kuadrant.yaml
+  - httproute.yaml
+  - ratelimitpolicy.yaml
