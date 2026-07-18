@@ -1,6 +1,6 @@
 .{
     .name = .kubectlgetall,
-    .version = "0.6.0",
+    .version = "0.7.0-dev",
     .fingerprint = 0x146917ff4713c3,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
