@@ -1,3 +1,0 @@
-kind: Changed
-body: The `get` command exclude flag now uses case-insensitive full-string matching against both the CRD resource name and the resolved Kind name. For example `--exclude events` matches the CRD name `events`, and `--exclude event` matches the Kind `Event`.
-time: 2026-06-27T02:00:39.769881601+01:00
